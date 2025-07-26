@@ -1,8 +1,8 @@
 /**
  * These arguments were used when this file was generated. They will be automatically applied on subsequent loads
  * via the GUI or CLI. Run CLI with '--help' for additional information on how to override these arguments.
- * @cliArgs --device "MSPM0G350X" --part "Default" --package "LQFP-64(PM)" --product "mspm0_sdk@2.05.00.05"
- * @v2CliArgs --device "MSPM0G3507" --package "LQFP-64(PM)" --product "mspm0_sdk@2.05.00.05"
+ * @cliArgs --device "MSPM0G350X" --part "Default" --package "LQFP-64(PM)" --product "mspm0_sdk@2.05.01.00"
+ * @v2CliArgs --device "MSPM0G3507" --package "LQFP-64(PM)" --product "mspm0_sdk@2.05.01.00"
  * @versions {"tool":"1.24.0+4110"}
  */
 
@@ -117,8 +117,8 @@ TIMER1.$name             = "TIMER_0";
 TIMER1.timerClkDiv       = 8;
 TIMER1.timerMode         = "PERIODIC";
 TIMER1.interrupts        = ["ZERO"];
-TIMER1.timerPeriod       = "10 ms";
 TIMER1.interruptPriority = "2";
+TIMER1.timerPeriod       = "1 ms";
 
 UART1.$name                            = "UART_SCREEN";
 UART1.txPinConfig.$name                = "ti_driverlib_gpio_GPIOPinGeneric3";

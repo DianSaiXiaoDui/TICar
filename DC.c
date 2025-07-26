@@ -25,8 +25,8 @@ extern volatile double TotalDistance;//总移动距离
 extern volatile double TargetDistance;//目标移动距离
 
 extern volatile uint8_t EnableEncoderFlag;
-extern volatile uint16_t  EncoderA_Cnt;
-extern volatile uint16_t  EncoderB_Cnt;
+extern volatile int32_t  EncoderA_Cnt;
+extern volatile int32_t  EncoderB_Cnt;
 extern  enum DcDriveMode DriveMode;
 
 //电机初始化
@@ -61,18 +61,18 @@ void SetVelocityL(float ratio)
    else if(ratio<0)
        L_dir=0;//反转
 
-    /*正转驱动*/
+    /*后驱时正转驱动*/
     if(L_dir>0)
     {
        DL_GPIO_setPins(GPIO_DC_PORT,GPIO_DC_AIN0_PIN);  //AIN0=1
-		   DL_Timer_setCaptureCompareValue(PWM_DC_INST,(uint16_t)(1-ratio)*DC_ARR,GPIO_PWM_DC_C0_IDX );//PWM(AIN1)
+		   DL_Timer_setCaptureCompareValue(PWM_DC_INST,(uint16_t)((ratio)*DC_ARR),GPIO_PWM_DC_C0_IDX );//PWM(AIN1)
     }
 
-    /*反转驱动*/
+    /*后驱时反转驱动*/
     else
     {
         DL_GPIO_clearPins(GPIO_DC_PORT,GPIO_DC_AIN0_PIN);  //AIN0=0
-        DL_Timer_setCaptureCompareValue(PWM_DC_INST,(uint16_t)(-ratio)*DC_ARR,GPIO_PWM_DC_C0_IDX);//PWM(AIN1)
+        DL_Timer_setCaptureCompareValue(PWM_DC_INST,(uint16_t)((1+ratio)*DC_ARR),GPIO_PWM_DC_C0_IDX);//PWM(AIN1)
     }
 
 
@@ -95,18 +95,18 @@ void SetVelocityR(float ratio)
    else if(ratio<0)
        R_dir=0;//反转
 
-    /*正转驱动*/
+    /*后驱时正转驱动*/
     if(R_dir>0)
     {
        DL_GPIO_setPins(GPIO_DC_PORT,GPIO_DC_AIN2_PIN);  //AIN2=1
-	    	DL_Timer_setCaptureCompareValue(PWM_DC_INST,(uint16_t)(1-ratio)*DC_ARR,GPIO_PWM_DC_C1_IDX );//PWM(AIN3)
+	    	DL_Timer_setCaptureCompareValue(PWM_DC_INST,(uint16_t)((ratio)*DC_ARR),GPIO_PWM_DC_C1_IDX );//PWM(AIN3)
     }
 
-    /*反转驱动*/
+    /*后驱时反转驱动*/
     else
     {
         DL_GPIO_clearPins(GPIO_DC_PORT,GPIO_DC_AIN2_PIN);  //AIN2=0
-        DL_Timer_setCaptureCompareValue(PWM_DC_INST,(uint16_t)(-ratio)*DC_ARR,GPIO_PWM_DC_C1_IDX);//PWM(AIN3)、
+        DL_Timer_setCaptureCompareValue(PWM_DC_INST,(uint16_t)((1+ratio)*DC_ARR),GPIO_PWM_DC_C1_IDX);//PWM(AIN3)、
     }
 
 }
@@ -123,7 +123,7 @@ void SetVelocity(float ratioL,float ratioR)
       //DL_TimerG_startCounter(PWM_DC_INST );
 		 //两路pwm占空比置0
        DL_Timer_setCaptureCompareValue(PWM_DC_INST,1,GPIO_PWM_DC_C0_IDX);//PWM(AIN1)
-	  	  DL_Timer_setCaptureCompareValue(PWM_DC_INST,1,GPIO_PWM_DC_C1_IDX);//PWM(AIN3)
+	  	DL_Timer_setCaptureCompareValue(PWM_DC_INST,1,GPIO_PWM_DC_C1_IDX);//PWM(AIN3)
 		  //编码器计数值置0
 		  EncoderA_Cnt=0;
 		  EncoderB_Cnt=0;
@@ -150,8 +150,8 @@ void UpdateVelocity(void)
    double V_Temp;//交互中介速度
    double V_C;//小车平均速度
    double circle=PI*DD/10;//轮子周长（cm）
-   double dpp=circle/GMR_CPR_2;  //每个脉冲对应的距离（cm）[软件二倍频]
-   int16_t delta_distance_L,delta_distance_R;//一个测速周期内计数器累加值
+   double dpp=circle/GMR_CPR_4;  //每个脉冲对应的距离（cm）[软件四倍频]
+   int32_t delta_distance_L,delta_distance_R;//一个测速周期内计数器累加值
    double delta_distance_L_cm,delta_distance_R_cm;//将计数器累加值转化为cm
 
     //获取一个测速周期内左后轮/右后轮计数器值
@@ -166,9 +166,6 @@ void UpdateVelocity(void)
    delta_distance_L_cm=delta_distance_L*dpp;
    delta_distance_R_cm=delta_distance_R*dpp;
 
-   //计算一个测速周期内的速度
-   V_L=delta_distance_L_cm/(T_Velocity/1000.0);
-   V_R=delta_distance_R_cm/(T_Velocity/1000.0);
   
    //前驱模式，交换轮速
    if(DriveMode==BACK)
@@ -238,11 +235,11 @@ void DC_Start(int8_t dir)
 void DC_Stop(void)
 {
 	//关停1号电机
-  DL_Timer_setCaptureCompareValue(PWM_DC_INST,2,GPIO_PWM_DC_C0_IDX);//PWM(AIN1)
+  DL_Timer_setCaptureCompareValue(PWM_DC_INST,0.98*DC_ARR,GPIO_PWM_DC_C0_IDX);//PWM(AIN1)
 	DL_GPIO_clearPins(GPIO_DC_PORT,GPIO_DC_AIN0_PIN);    
 	//关停2号电机
-	DL_Timer_setCaptureCompareValue(PWM_DC_INST,2,GPIO_PWM_DC_C1_IDX);//PWM(AIN3)	
-	DL_GPIO_clearPins(GPIO_DC_PORT,GPIO_DC_AIN0_PIN); 
+	DL_Timer_setCaptureCompareValue(PWM_DC_INST,0.98*DC_ARR,GPIO_PWM_DC_C1_IDX);//PWM(AIN3)	
+	DL_GPIO_clearPins(GPIO_DC_PORT,GPIO_DC_AIN2_PIN); 
 	//Velocity_PID_Reset();//速度pid复位
 	MoveFlag=0;
   Dir_L=0;

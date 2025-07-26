@@ -11,6 +11,9 @@
  */
 const ADC12         = scripting.addModule("/ti/driverlib/ADC12", {}, false);
 const ADC121        = ADC12.addInstance();
+const COMPARE       = scripting.addModule("/ti/driverlib/COMPARE", {}, false);
+const COMPARE1      = COMPARE.addInstance();
+const COMPARE2      = COMPARE.addInstance();
 const GPIO          = scripting.addModule("/ti/driverlib/GPIO", {}, false);
 const GPIO1         = GPIO.addInstance();
 const GPIO2         = GPIO.addInstance();
@@ -40,6 +43,21 @@ ADC121.adcPin0Config.$name        = "ti_driverlib_gpio_GPIOPinGeneric0";
 
 const Board = scripting.addModule("/ti/driverlib/Board", {}, false);
 
+COMPARE1.$name                      = "COMPARE_0";
+COMPARE1.timerPeriod                = 10;
+COMPARE1.filteringMode              = "VOTING";
+COMPARE1.compareMode                = "EDGE_COUNT_UP";
+COMPARE1.interrupts                 = ["LOAD"];
+COMPARE1.peripheral.ccp0Pin.$assign = "PB13";
+COMPARE1.ccp0PinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric5";
+
+COMPARE2.$name                      = "COMPARE_1";
+COMPARE2.compareMode                = "EDGE_COUNT_UP";
+COMPARE2.interrupts                 = ["LOAD"];
+COMPARE2.timerPeriod                = 10;
+COMPARE2.peripheral.ccp0Pin.$assign = "PB15";
+COMPARE2.ccp0PinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric6";
+
 GPIO1.$name                          = "GPIO_DC";
 GPIO1.associatedPins.create(2);
 GPIO1.associatedPins[0].assignedPort = "PORTB";
@@ -53,35 +71,23 @@ GPIO1.associatedPins[1].$name        = "AIN2";
 
 GPIO2.$name                               = "GPIO_ENCODER";
 GPIO2.port                                = "PORTB";
-GPIO2.associatedPins.create(4);
-GPIO2.associatedPins[0].$name             = "PIN_1A";
+GPIO2.associatedPins.create(2);
+GPIO2.associatedPins[0].$name             = "PIN_1B";
 GPIO2.associatedPins[0].direction         = "INPUT";
+GPIO2.associatedPins[0].inputFilter       = "8_CYCLES";
+GPIO2.associatedPins[0].polarity          = "RISE";
+GPIO2.associatedPins[0].internalResistor  = "PULL_UP";
 GPIO2.associatedPins[0].ioStructure       = "SD";
-GPIO2.associatedPins[0].interruptEn       = true;
-GPIO2.associatedPins[0].polarity          = "RISE_FALL";
-GPIO2.associatedPins[0].interruptPriority = "3";
-GPIO2.associatedPins[0].pin.$assign       = "PB13";
-GPIO2.associatedPins[1].$name             = "PIN_1B";
+GPIO2.associatedPins[0].pin.$assign       = "PB20";
+GPIO2.associatedPins[1].$name             = "PIN_2B";
 GPIO2.associatedPins[1].direction         = "INPUT";
 GPIO2.associatedPins[1].ioStructure       = "SD";
 GPIO2.associatedPins[1].interruptEn       = true;
-GPIO2.associatedPins[1].polarity          = "RISE_FALL";
-GPIO2.associatedPins[1].interruptPriority = "3";
-GPIO2.associatedPins[1].pin.$assign       = "PB20";
-GPIO2.associatedPins[2].$name             = "PIN_2A";
-GPIO2.associatedPins[2].direction         = "INPUT";
-GPIO2.associatedPins[2].ioStructure       = "SD";
-GPIO2.associatedPins[2].interruptEn       = true;
-GPIO2.associatedPins[2].polarity          = "RISE_FALL";
-GPIO2.associatedPins[2].interruptPriority = "3";
-GPIO2.associatedPins[2].pin.$assign       = "PB15";
-GPIO2.associatedPins[3].$name             = "PIN_2B";
-GPIO2.associatedPins[3].direction         = "INPUT";
-GPIO2.associatedPins[3].ioStructure       = "SD";
-GPIO2.associatedPins[3].interruptEn       = true;
-GPIO2.associatedPins[3].polarity          = "RISE_FALL";
-GPIO2.associatedPins[3].interruptPriority = "3";
-GPIO2.associatedPins[3].pin.$assign       = "PB17";
+GPIO2.associatedPins[1].inputFilter       = "8_CYCLES";
+GPIO2.associatedPins[1].polarity          = "RISE";
+GPIO2.associatedPins[1].internalResistor  = "PULL_UP";
+GPIO2.associatedPins[1].interruptPriority = "1";
+GPIO2.associatedPins[1].pin.$assign       = "PB17";
 
 GPIO3.$name                         = "GPIO_CCD";
 GPIO3.associatedPins.create(2);
@@ -139,6 +145,8 @@ UART1.rxPinConfig.passedPeripheralType = scripting.forceWrite("Digital");
 Board.peripheral.$suggestSolution            = "DEBUGSS";
 Board.peripheral.swclkPin.$suggestSolution   = "PA20";
 Board.peripheral.swdioPin.$suggestSolution   = "PA19";
+COMPARE1.peripheral.$suggestSolution         = "TIMG12";
+COMPARE2.peripheral.$suggestSolution         = "TIMG7";
 GPIO1.associatedPins[0].pin.$suggestSolution = "PB8";
 GPIO1.associatedPins[1].pin.$suggestSolution = "PB6";
 SYSCTL.peripheral.$suggestSolution           = "SYSCTL";

@@ -150,7 +150,7 @@ void UpdateVelocity(void)
    double V_Temp;//交互中介速度
    double V_C;//小车平均速度
    double circle=PI*DD/10;//轮子周长（cm）
-   double dpp=circle/GMR_CPR_4;  //每个脉冲对应的距离（cm）[软件四倍频]
+   double dpp=circle/GMR_CPR_1*10;  //每个脉冲对应的距离（cm）[软件四倍频]
    int32_t delta_distance_L,delta_distance_R;//一个测速周期内计数器累加值
    double delta_distance_L_cm,delta_distance_R_cm;//将计数器累加值转化为cm
 

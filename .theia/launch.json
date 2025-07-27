@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "M0_SmartModelCar",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "M0_SmartModelCar",
+                "resourceId": "/M0_SmartModelCar"
+            }
+        }
+    ]
+}

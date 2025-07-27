@@ -1,5 +1,6 @@
 #include "DC.h"
 #include "Velocity_PID.h"
+#include "Angle_PID.h"
 #include "CCD.h"
 #include "CCD_ex.h"
 #include "ti/driverlib/dl_adc12.h"
@@ -9,6 +10,8 @@
 #include "ti_msp_dl_config.h"
 #include "ti/driverlib/dl_timer.h"
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include "PTZcontrol.h"
 
 
@@ -33,7 +36,9 @@ uint16_t MaxIdx=0;//最大像素跳变点坐标
 uint16_t MinIdx=0;//最小像素跳变点坐标
 uint16_t CCD_TargetIdx;//目标中心点坐标
 uint8_t CCD_UpdateFlag=0; //CCD更新标志
-uint8_t CCD_Angle_Period=100;//CCD调控周期（巡线）
+uint8_t T_Angle=100;//CCD调控周期（巡线）
+volatile uint32_t Angle_PID_Cnt;//巡线差速pid计数器
+extern Angle_PID_Struct Angle_PID;
 
 //电机
 volatile uint8_t MoveFlag;
@@ -42,16 +47,17 @@ volatile uint8_t StraightStopFlag;
 volatile uint8_t MotorStopFlag;
 volatile uint8_t TurnFlag;
 volatile uint32_t TurnPeriod;
-volatile uint32_t Cnt_1ms;//1ms计数器
+volatile uint32_t Velocity_PID_Cnt;//速度pid计数器
 volatile uint8_t T_Velocity=20;//测速周期
 volatile double V_L;
 volatile double V_R;
-volatile  double NewVelocity;//测试时修改目标速度
+volatile double NewVelocity;//测试时修改目标速度
 volatile int8_t Dir;//标识车前进/后退方向（不含旋转）
 volatile int8_t Dir_L;
 volatile int8_t Dir_R;
 volatile double TotalDistance;//总移动距离
 volatile double TargetDistance;//目标移动距离
+volatile double V_Base=30;//基准启动速度
 
 //编码器
 volatile uint8_t EnableEncoderFlag=0;
@@ -63,7 +69,8 @@ volatile int32_t EncoderB_Cnt=0;//编码器B计数
 extern BL_Velocity_PID_Struct BL_Velocity_PID;
 extern BR_Velocity_PID_Struct BR_Velocity_PID;
 extern struct Circle c;
- volatile uint8_t Velocity_PID_UpdateFlag=0;
+volatile uint8_t Velocity_PID_UpdateFlag=0;
+volatile char Velocity_Str[30];//串口查看速度波形 
 
 //串口屏
 // 串口屏通讯命令
@@ -86,7 +93,7 @@ volatile uint8_t Touch_pannel_data_receive_start = 0;
 
 //驱动模式
 volatile int8_t DriveMode=1;//前驱（-1：后驱）
-
+void UART_SCREEN_TransmitString(const char* str);
 uint32_t Delay_ms(uint32_t n)
 {
     uint32_t cycles=CPUCLK_FREQ*(n/1000.0);
@@ -168,8 +175,10 @@ int main(void) {
             break;
         // 调整车速
         case 0x14:
-            float TargetSpeed=V_MIN+(V_MAX-V_MIN)*Touch_pannel_Uart0_RxBuffer[2]/100.0;
-				    Set_TargetVelocity(TargetSpeed,TargetSpeed);
+            
+            //float TargetSpeed=V_MIN+(V_MAX-V_MIN)*Touch_pannel_Uart0_RxBuffer[2]/100.0;
+				    //Set_TargetVelocity(TargetSpeed,TargetSpeed);
+            V_Base=V_MIN+(V_MAX-V_MIN)*Touch_pannel_Uart0_RxBuffer[2]/100.0;
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;
         // 车左转90度
@@ -198,8 +207,17 @@ int main(void) {
     if(MoveFlag==1 && Velocity_PID_UpdateFlag==1)
     {
       UpdateVelocity();
+      Velocity_PID_Update();
       Velocity_PID_UpdateFlag=0;
-       Velocity_PID_Update();
+    }
+
+    if(CCD_UpdateFlag==1)
+    {
+      CCD_Read();
+      CCD_DataProcess();
+     // Angle_PID_SetCurX(TargetIdx);
+     // Angle_PID_Update();
+      CCD_UpdateFlag=0;
     }
 
   }
@@ -255,11 +273,21 @@ void COMPARE_1_INST_IRQHandler()
 
 void TIMER_0_INST_IRQHandler() {
 
-  Cnt_1ms++;
-  if(Cnt_1ms%T_Velocity==0)
+  if(MoveFlag==1)
   {
-     Velocity_PID_UpdateFlag=1;
-     Cnt_1ms=0;
+    Velocity_PID_Cnt++;
+     Angle_PID_Cnt++;
+
+    if(Velocity_PID_Cnt % T_Velocity==0)
+    {
+      Velocity_PID_UpdateFlag=1;
+      Velocity_PID_Cnt=0;
+    }
+    if(Angle_PID_Cnt & T_Angle==0)
+    {
+      Angle_PID_Cnt =0;
+      CCD_UpdateFlag=1;
+    }
   }
 
  
@@ -305,4 +333,14 @@ void UART_SCREEN_INST_IRQHandler(void)
         default: 
             break;
     }
+}
+
+/*串口发送字符串*/ 
+void UART_SCREEN_TransmitString(const char* str)
+{
+   while(*str!='\0')
+   {
+      DL_UART_transmitDataBlocking(UART_SCREEN_INST , (uint8_t)*str);
+      str++;
+   }
 }

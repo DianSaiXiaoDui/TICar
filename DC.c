@@ -122,8 +122,8 @@ void SetVelocity(float ratioL,float ratioR)
       //开启定时器(开启PWM输出)
       //DL_TimerG_startCounter(PWM_DC_INST );
 		 //两路pwm占空比置0
-       DL_Timer_setCaptureCompareValue(PWM_DC_INST,1,GPIO_PWM_DC_C0_IDX);//PWM(AIN1)
-	  	DL_Timer_setCaptureCompareValue(PWM_DC_INST,1,GPIO_PWM_DC_C1_IDX);//PWM(AIN3)
+      DL_Timer_setCaptureCompareValue(PWM_DC_INST,1,GPIO_PWM_DC_C0_IDX);//PWM(AIN1)
+	  	DL_Timer_setCaptureCompareValue(PWM_DC_INST,1,GPIO_PWM_DC_C1_IDX);//PWM(AIN3) 
 		  //编码器计数值置0
 		  EncoderA_Cnt=0;
 		  EncoderB_Cnt=0;

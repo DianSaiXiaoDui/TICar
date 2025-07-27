@@ -3,6 +3,7 @@
 #include "ti/driverlib/m0p/dl_core.h"
 #include "ti_msp_dl_config.h"
 
+
 void delay_us(uint8_t val)
 {
     for(uint8_t i = 0; i<val; i++)

@@ -3,10 +3,8 @@
 
 #include <stdint.h>
 
-extern volatile uint16_t ccd_filtered[128];
-extern volatile uint16_t TargetIdx;
 
-void CCD_MeanFilter(void);
-void CCD_FindBlackLine(void);
+void CCD_DataProcess(void);
+void CCD_MedianFilter(void);
 
 #endif

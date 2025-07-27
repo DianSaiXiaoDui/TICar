@@ -2,16 +2,31 @@
 #include "Velocity_PID.h"
 #include "DC.h"
 
-extern enum DcDriveMode{
+BL_Velocity_PID_Struct BL_Velocity_PID;//左轮速度pid控制器
+BR_Velocity_PID_Struct BR_Velocity_PID;//右轮速度pid控制器
+
+enum DcDriveMode{
   FRONT,
   BACK
 } ;
-extern  enum DcDriveMode DriveMode;
-extern double V_L;
-extern double V_R;
-extern uint8_t MoveFlag;
-BL_Velocity_PID_Struct BL_Velocity_PID;//左轮速度pid控制器
-BR_Velocity_PID_Struct BR_Velocity_PID;//右轮速度pid控制器
+
+volatile extern uint8_t MoveFlag;
+volatile extern uint8_t EnableDistanceFlag;
+volatile extern uint8_t StraightStopFlag;
+volatile extern uint8_t MotorStopFlag;
+volatile extern uint8_t TurnFlag;
+volatile extern uint32_t TurnPeriod;
+volatile extern uint32_t Cnt_1ms;//1ms计数器
+volatile extern uint8_t T_Velocity;//测速周期
+volatile extern double V_L;
+volatile extern double V_R;
+volatile extern  double NewVelocity;//测试时修改目标速度
+volatile extern int8_t Dir;//标识车前进/后退方向（不含旋转）
+volatile extern int8_t Dir_L;
+volatile extern int8_t Dir_R;
+volatile extern double TotalDistance;//总移动距离
+volatile extern double TargetDistance;//目标移动距离
+volatile extern enum DcDriveMode DriveMode;
 
 //左轮速度pid初始化函数
 void BL_Velocity_PID_Init(void)
@@ -197,16 +212,15 @@ void Set_BR_TargetVelocity(double v)
 
 void Set_TargetVelocity(double vl,double vr)
 {
-	if (DriveMode==BACK)
-	{
 		BL_Velocity_PID.TargetVelocity=vl;
 		BR_Velocity_PID.TargetVelocity=vr;
-	}
-	else if(DriveMode==FRONT)
+	/*
+	else if(DriveMode==1)
 	{
 		BL_Velocity_PID.TargetVelocity=-vr;
 		BR_Velocity_PID.TargetVelocity=-vl;
 	}
+    */
 
 }
 

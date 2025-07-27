@@ -1,4 +1,5 @@
 #include "DC.h"
+#include "Velocity_PID.h"
 #include "ti/driverlib/m0p/dl_core.h"
 #include "ti_msp_dl_config.h"
 
@@ -27,7 +28,7 @@ extern volatile double TargetDistance;//目标移动距离
 extern volatile uint8_t EnableEncoderFlag;
 extern volatile int32_t  EncoderA_Cnt;
 extern volatile int32_t  EncoderB_Cnt;
-extern  enum DcDriveMode DriveMode;
+extern volatile int8_t DriveMode;
 
 //电机初始化
 void DC_Init(void)
@@ -120,9 +121,9 @@ void SetVelocity(float ratioL,float ratioR)
 	{
 		
       //开启定时器(开启PWM输出)
-      //DL_TimerG_startCounter(PWM_DC_INST );
+      DL_TimerG_startCounter(PWM_DC_INST);
 		 //两路pwm占空比置0
-       DL_Timer_setCaptureCompareValue(PWM_DC_INST,1,GPIO_PWM_DC_C0_IDX);//PWM(AIN1)
+      DL_Timer_setCaptureCompareValue(PWM_DC_INST,1,GPIO_PWM_DC_C0_IDX);//PWM(AIN1)
 	  	DL_Timer_setCaptureCompareValue(PWM_DC_INST,1,GPIO_PWM_DC_C1_IDX);//PWM(AIN3)
 		  //编码器计数值置0
 		  EncoderA_Cnt=0;
@@ -131,12 +132,12 @@ void SetVelocity(float ratioL,float ratioR)
 	}
 	if(MoveFlag==1)
 	{
-       if(DriveMode==BACK)
+       if(DriveMode==-1)
 	   {
 		  	SetVelocityL(ratioL);
 		   	SetVelocityR(ratioR);
 	   }
-	   else if(DriveMode==FRONT)
+	   else if(DriveMode==1)
 	   {
         SetVelocityL(-ratioR);
 		  	SetVelocityR(-ratioL);
@@ -168,12 +169,12 @@ void UpdateVelocity(void)
 
   
    //前驱模式，交换轮速
-   if(DriveMode==BACK)
+   if(DriveMode==-1)
    {
      V_L=delta_distance_L_cm/(T_Velocity/1000.0);
      V_R=delta_distance_R_cm/(T_Velocity/1000.0);
    }
-   else if(DriveMode==FRONT)
+   else if(DriveMode==1)
    {
      V_L=-(delta_distance_R_cm/(T_Velocity/1000.0));
      V_R=-(delta_distance_L_cm/(T_Velocity/1000.0));
@@ -223,7 +224,7 @@ void DC_Start(int8_t dir)
 	}
 	else if(dir==10) //后退
 	{
-	  Set_TargetVelocity(-20,20);//设置pid目标速度20
+	  Set_TargetVelocity(-20,-20);//设置pid目标速度20
 	  SetVelocity(-0.1,-0.1);//启动电机
     Dir_L=-1;
     Dir_R=-1;
@@ -240,6 +241,7 @@ void DC_Stop(void)
 	//关停2号电机
 	DL_Timer_setCaptureCompareValue(PWM_DC_INST,0.98*DC_ARR,GPIO_PWM_DC_C1_IDX);//PWM(AIN3)	
 	DL_GPIO_clearPins(GPIO_DC_PORT,GPIO_DC_AIN2_PIN); 
+  DL_TimerG_stopCounter(PWM_DC_INST);//关停定时器 
 	Velocity_PID_Reset();//速度pid复位
 	MoveFlag=0;
   Dir_L=0;
@@ -296,6 +298,7 @@ void DC_Backward(float Distance,uint8_t inf)//后退
 		  TargetDistance=Distance;
 	}
 }
+
 
 
 

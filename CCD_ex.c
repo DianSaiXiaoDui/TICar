@@ -3,54 +3,74 @@
 #include "ti/driverlib/m0p/dl_core.h"
 #include "ti_msp_dl_config.h"
 
-#define CCD_FILTER_WINDOW 3
+extern uint16_t CCD_ADV_Origin[128];
+extern uint16_t CCD_ADV_Filtered[128];
+extern int16_t DxMax;
+extern int16_t DxMin;
+extern int16_t dX[128];
+extern uint16_t MaxIdx;
+extern uint16_t MinIdx;
+extern uint16_t CCD_TargetIdx;
 
-// 窗口为5的均值滤波
-// 计算方式：对每个像素点，取其前后各2个像素点的值（共5个），求平均值
-// 适用于去除CCD数据中的噪声，平滑图像
-// 只用 ccd_filtered[2] ~ ccd_filtered[125]，前2和后2个点不参与黑线识别。
-void CCD_MeanFilter(void)
+//CCD原始像素序列中值滤波
+void CCD_MedianFilter()
 {
-    uint32_t sum = 0;
-    uint8_t half = CCD_FILTER_WINDOW / 2;
-    for(uint8_t i = 0; i < 128; i++) {
-        sum = 0;
-        uint8_t count = 0;
-        for(int8_t j = -half; j <= half; j++) {
-            int16_t idx = i + j;
-            if(idx >= 0 && idx < 128) {
-                sum += ccd_result[idx];
-                count++;
-            }
-        }
-        ccd_filtered[i] = (uint16_t)(sum / count);
+    // 对每个点计算左、中、右三个值的中位数并保存到 CCD_ADV_Filtered
+    for (int j = 0; j < 128; j++)
+    {
+        int left_val, current_val, right_val;
+
+        // 处理边界条件
+        left_val = (j == 0) ? CCD_ADV_Origin[j] : CCD_ADV_Origin[j - 1];  // 左边值（j=0时取当前值）
+        current_val = CCD_ADV_Origin[j];                       // 当前值
+        right_val = (j == 127) ? CCD_ADV_Origin[j] : CCD_ADV_Origin[j + 1]; // 右边值（j=127时取当前值）
+
+        // 计算三个值的中位数
+        int a = left_val;
+        int b = current_val;
+        int c = right_val;
+
+        // 手动计算最小值和最大值
+        int min_val = a;
+        if (b < min_val) min_val = b;
+        if (c < min_val) min_val = c;
+
+        int max_val = a;
+        if (b > max_val) max_val = b;
+        if (c > max_val) max_val = c;
+
+        // 中位数 = 总和 - 最小值 - 最大值
+        CCD_ADV_Filtered[j] = a + b + c - min_val - max_val;
     }
 }
 
-// 黑线中心查找算法（差分法）
-// 返回黑线中心像素位置，404表示未找到
-void CCD_FindBlackLine(void)
+//CCD数据处理：中值滤波计算黑线中心
+void CCD_DataProcess(void)
 {
-    int16_t dX[128];
-    int16_t DxMax = -32768;
-    int16_t DxMin = 32767;
-    uint8_t MaxIdx = 0, MinIdx = 0;
-    // 前和后各1个点不参与计算
-    for(uint8_t j = 1; j < 123; j++) {
-        dX[j] = ccd_filtered[j] - ccd_filtered[j + 3];
-        if(dX[j] < DxMin) {
+   uint8_t j;
+   DxMax=0;
+   DxMin=0;
+
+    CCD_MedianFilter();
+
+
+    for (j = 0; j < 125; j++)
+    {
+        dX[j] = CCD_ADV_Filtered[j] - CCD_ADV_Filtered[j + 3]; // 使用过滤后的数据，j+3 最大为 127（当 j=124）
+
+        if (DxMin > dX[j])
+        {
             DxMin = dX[j];
             MinIdx = j;
         }
-        if(dX[j] > DxMax) {
+        if (DxMax < dX[j])
+        {
             DxMax = dX[j];
             MaxIdx = j;
         }
     }
-    // 黑线中心判定
-    if(MaxIdx < MinIdx)
-        TargetIdx = (MaxIdx + MinIdx) >> 1;
-    else
-        TargetIdx = 404; // 未找到有效黑线
-}
 
+   if (MinIdx-MaxIdx>5)
+     CCD_TargetIdx = (MaxIdx+MinIdx)>>1;
+
+}

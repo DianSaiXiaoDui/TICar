@@ -3,6 +3,9 @@
 #include "ti/driverlib/m0p/dl_core.h"
 #include "ti_msp_dl_config.h"
 
+extern volatile uint8_t ADC_flag;
+extern volatile uint16_t CCD_ADV_Origin[128];
+
 void delay_us(uint8_t val)
 {
     for(uint8_t i = 0; i<val; i++)
@@ -68,7 +71,7 @@ void CCD_Read(void)
     // }
     // ADC_flag = 0;
 
-    ccd_result[i] = DL_ADC12_getMemResult(ADC12_0_INST, DL_ADC12_MEM_IDX_0);
+    CCD_ADV_Origin[i] = DL_ADC12_getMemResult(ADC12_0_INST, DL_ADC12_MEM_IDX_0);
 
     DL_GPIO_setPins(GPIO_CCD_CLK_PORT, GPIO_CCD_CLK_PIN);
     delay_us(2);

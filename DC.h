@@ -10,7 +10,7 @@
 #define GMR_CPR_2 28000 //GMR编码电机转一圈对应的脉冲数(软件二倍频)
 #define GMR_CPR_4 56000 //GMR编码电机转一圈对应的脉冲数(软件四倍频)
 #define DC_RATIO_MAX 0.8 //最大电机转速比例
-#define DC_ARR 1000//电机pwmARR
+#define DC_ARR 10000//电机pwmARR
 void DC_Init(void);//电机初始化
 void SetVelocityL(float ratio);//设置左轮速度（左后）
 void SetVelocityR(float ratio);//设置右轮速度（右后）

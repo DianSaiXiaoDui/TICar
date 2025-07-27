@@ -9,10 +9,11 @@
 #include "ti_msp_dl_config.h"
 #include "ti/driverlib/dl_timer.h"
 #include <stdio.h>
+#include "PTZcontrol.h"
+
 
 #define V_MAX 80
 #define V_MIN 10
-
 volatile uint8_t Time_Count_1mS_Index = 0x0;
 /*
 volatile uint16_t EncoderA_Cnt = 32500;
@@ -61,6 +62,7 @@ volatile int32_t EncoderB_Cnt=0;//编码器B计数
 //速度pid
 extern BL_Velocity_PID_Struct BL_Velocity_PID;
 extern BR_Velocity_PID_Struct BR_Velocity_PID;
+extern struct Circle c;
  volatile uint8_t Velocity_PID_UpdateFlag=0;
 
 //串口屏
@@ -135,9 +137,11 @@ int main(void) {
   //DC_Stop();
   // set_pwm_left(20, 1);
   // set_pwm_right(20, 1);
-
+  FollowPoint(0, 0);
+  delay_cycles(32000000);
   while (1) {
-
+    
+    DrawCircle();
     /*CCD_Read();
     CCD_MeanFilter();
     CCD_FindBlackLine();*/

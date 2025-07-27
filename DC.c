@@ -29,6 +29,7 @@ extern volatile uint8_t EnableEncoderFlag;
 extern volatile int32_t  EncoderA_Cnt;
 extern volatile int32_t  EncoderB_Cnt;
 extern volatile int8_t DriveMode;
+extern volatile double V_Base;
 
 //电机初始化
 void DC_Init(void)
@@ -200,7 +201,7 @@ void DC_Start(int8_t dir)
 {
 	if(dir==0) //直走
 	{
-	  Set_TargetVelocity(20,20);//设置pid目标速度20
+	  Set_TargetVelocity(V_Base,V_Base);//设置pid目标速度V_Base
 	  SetVelocity(0.1,0.1);//启动电机
     Dir_L=1;
     Dir_R=1;
@@ -208,7 +209,7 @@ void DC_Start(int8_t dir)
 	}
 	else if(dir==1)//右转
 	{
-	  Set_TargetVelocity(20,-20);//设置pid目标速度20
+	  Set_TargetVelocity(V_Base,-V_Base);//设置pid目标速度V_Base
 	  SetVelocity(0.1,-0.1);//启动电机
     Dir_L=1;
     Dir_R=-1;
@@ -216,7 +217,7 @@ void DC_Start(int8_t dir)
 	}
 	else if(dir==-1)//左转
 	{
-	  Set_TargetVelocity(-20,20);//设置pid目标速度20
+	  Set_TargetVelocity(-V_Base,V_Base);//设置pid目标速度V_Base
 	  SetVelocity(-0.1,0.1);//启动电机
     Dir_L=-1;
     Dir_R=1;
@@ -224,7 +225,7 @@ void DC_Start(int8_t dir)
 	}
 	else if(dir==10) //后退
 	{
-	  Set_TargetVelocity(-20,-20);//设置pid目标速度20
+	  Set_TargetVelocity(-V_Base,-V_Base);//设置pid目标速度V_Base
 	  SetVelocity(-0.1,-0.1);//启动电机
     Dir_L=-1;
     Dir_R=-1;

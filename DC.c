@@ -199,7 +199,7 @@ void DC_Start(int8_t dir)
 {
 	if(dir==0) //直走
 	{
-	  //Set_TargetVelocity(20,20);//设置pid目标速度20
+	  Set_TargetVelocity(20,20);//设置pid目标速度20
 	  SetVelocity(0.1,0.1);//启动电机
     Dir_L=1;
     Dir_R=1;
@@ -207,7 +207,7 @@ void DC_Start(int8_t dir)
 	}
 	else if(dir==1)//右转
 	{
-	  //Set_TargetVelocity(20,-20);//设置pid目标速度20
+	  Set_TargetVelocity(20,-20);//设置pid目标速度20
 	  SetVelocity(0.1,-0.1);//启动电机
     Dir_L=1;
     Dir_R=-1;
@@ -215,7 +215,7 @@ void DC_Start(int8_t dir)
 	}
 	else if(dir==-1)//左转
 	{
-	  //Set_TargetVelocity(-20,20);//设置pid目标速度20
+	  Set_TargetVelocity(-20,20);//设置pid目标速度20
 	  SetVelocity(-0.1,0.1);//启动电机
     Dir_L=-1;
     Dir_R=1;
@@ -223,7 +223,7 @@ void DC_Start(int8_t dir)
 	}
 	else if(dir==10) //后退
 	{
-	  //Set_TargetVelocity(-20,20);//设置pid目标速度20
+	  Set_TargetVelocity(-20,20);//设置pid目标速度20
 	  SetVelocity(-0.1,-0.1);//启动电机
     Dir_L=-1;
     Dir_R=-1;
@@ -240,7 +240,7 @@ void DC_Stop(void)
 	//关停2号电机
 	DL_Timer_setCaptureCompareValue(PWM_DC_INST,0.98*DC_ARR,GPIO_PWM_DC_C1_IDX);//PWM(AIN3)	
 	DL_GPIO_clearPins(GPIO_DC_PORT,GPIO_DC_AIN2_PIN); 
-	//Velocity_PID_Reset();//速度pid复位
+	Velocity_PID_Reset();//速度pid复位
 	MoveFlag=0;
   Dir_L=0;
   Dir_R=0;

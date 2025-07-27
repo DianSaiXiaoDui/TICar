@@ -1,7 +1,7 @@
 #include "DC.h"
+#include "Velocity_PID.h"
 #include "CCD.h"
 #include "CCD_ex.h"
-#include "motor_control.h"
 #include "ti/driverlib/dl_adc12.h"
 #include "ti/driverlib/dl_gpio.h"
 #include "ti/driverlib/dl_timerg.h"
@@ -58,6 +58,9 @@ volatile uint8_t UpdateEncoderFlag=0;
 volatile int32_t EncoderA_Cnt=0;//编码器A计数
 volatile int32_t EncoderB_Cnt=0;//编码器B计数
 
+//速度pid
+ volatile uint8_t Velocity_PID_UpdateFlag=0;
+
 
 //驱动模式
 enum DcDriveMode{
@@ -87,12 +90,11 @@ int main(void) {
   DL_TimerA_startCounter(TIMER_0_INST);
   DL_TimerG_startCounter(PWM_DC_INST);
 
-  //DC_Start(0);
+  DC_Start(0);
   // 正转时， 左边置低， 右边占空比越小速度越快， 零为满速
   // 反转时，左边置高，右边占空比越小速度越快
  
-  
-  SetVelocity(0.4,0.1);
+
 
  // delay_cycles(32000000);
   //delay_cycles(32000000);
@@ -105,260 +107,16 @@ int main(void) {
     /*CCD_Read();
     CCD_MeanFilter();
     CCD_FindBlackLine();*/
-    if(UpdateEncoderFlag==1)
+    if(Velocity_PID_UpdateFlag==1)
     {
       UpdateVelocity();
-      UpdateEncoderFlag=0;
+      Velocity_PID_UpdateFlag=0;
+      //Velocity_PID_Update();
     }
     //delay_cycles(32000000);
   }
 }
 
-void GROUP1_IRQHandler(void) {
-  
-    /*uint32_t EncoderA_Port = DL_GPIO_getEnabledInterruptStatus(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_1A_PIN | GPIO_ENCODER_PIN_1B_PIN);
-    uint32_t EncoderB_Port = DL_GPIO_getEnabledInterruptStatus(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_2A_PIN | GPIO_ENCODER_PIN_2B_PIN);
-    
-    // 编码器A 
-    if((EncoderA_Port & GPIO_ENCODER_PIN_1A_PIN) == GPIO_ENCODER_PIN_1A_PIN)        //编码器A-Pin0
-    {
-        if(!DL_GPIO_readPins(GPIO_ENCODER_PORT,GPIO_ENCODER_PIN_1B_PIN))   EncoderA_Cnt--;
-        else                                                                EncoderA_Cnt++;
-    }
-    else if((EncoderA_Port & GPIO_ENCODER_PIN_1B_PIN) == GPIO_ENCODER_PIN_1B_PIN)   //编码器A-Pin1
-    {
-        if(!DL_GPIO_readPins(GPIO_ENCODER_PORT,GPIO_ENCODER_PIN_1A_PIN))   EncoderA_Cnt++;
-        else                                                                EncoderA_Cnt--;
-    }
-    DL_GPIO_clearInterruptStatus(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_1A_PIN|GPIO_ENCODER_PIN_1B_PIN);
- 
- 
-    // 编码器B 
-    if((EncoderB_Port & GPIO_ENCODER_PIN_2A_PIN) == GPIO_ENCODER_PIN_2A_PIN)
-    {
-        if(!DL_GPIO_readPins(GPIO_ENCODER_PORT,GPIO_ENCODER_PIN_2B_PIN))   EncoderB_Cnt--;
-        else                                                                EncoderB_Cnt++;
-    }
-    else if((EncoderB_Port & GPIO_ENCODER_PIN_2B_PIN) == GPIO_ENCODER_PIN_2B_PIN)
-    {
-        if(!DL_GPIO_readPins(GPIO_ENCODER_PORT,GPIO_ENCODER_PIN_2A_PIN))   EncoderB_Cnt++;
-        else                                                                EncoderB_Cnt--;
-    }
-    DL_GPIO_clearInterruptStatus(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_2A_PIN|GPIO_ENCODER_PIN_2B_PIN);
-*/
-
-/*
-  uint32_t iidx = DL_GPIO_getPendingInterrupt(GPIO_ENCODER_PORT);
-  la_level = DL_GPIO_readPins(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_1A_PIN);
-  lb_level = DL_GPIO_readPins(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_1B_PIN);
-  ra_level = DL_GPIO_readPins(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_2A_PIN);
-  rb_level = DL_GPIO_readPins(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_2B_PIN);
-
-
-   if((iidx&GPIO_ENCODER_PIN_1A_IIDX)==GPIO_ENCODER_PIN_1A_IIDX)
-   {      // 左轮 A 相引脚产生中断
-    if (la_level != 0 && lb_level == 0) // A上升沿 B为低电平 正转
-      EncoderA_Cnt++;
-    else if (la_level != 0 && lb_level != 0) // A上升沿 B为高电平 反转
-      EncoderA_Cnt--;
-    else if (la_level == 0 && lb_level == 0) // A下降沿 B为低电平 反转
-      EncoderA_Cnt--;
-    else if (la_level == 0 && lb_level != 0) // A下降沿 B为高电平 正转
-      EncoderA_Cnt++;
-
-    DL_GPIO_clearInterruptStatus(GPIOB, GPIO_ENCODER_PIN_1A_PIN);
-  }
-
-  if((iidx & GPIO_ENCODER_PIN_1B_IIDX)==GPIO_ENCODER_PIN_1B_IIDX)  
-  {     // 左轮 B 相引脚产生中断
-    if (la_level != 0 && lb_level == 0) // B下降沿 A为高电平 反转
-      EncoderA_Cnt--;
-    else if (la_level != 0 && lb_level != 0) // B上升沿 A为高电平 正转
-      EncoderA_Cnt++;
-    else if (la_level == 0 && lb_level == 0) // B下降沿 A为低电平 正转
-      EncoderA_Cnt++;
-    else if (la_level == 0 && lb_level != 0) // B上升沿 A为低电平 反转
-      EncoderA_Cnt--;
-    DL_GPIO_clearInterruptStatus(GPIOB, GPIO_ENCODER_PIN_1B_PIN);  
-  }
-
-  if((iidx & GPIO_ENCODER_PIN_2A_IIDX)== GPIO_ENCODER_PIN_2A_IIDX)
-  {      // 右轮 A 相引脚产生中断
-    if (ra_level != 0 && rb_level == 0) // A上升沿 B为低电平 正转
-      EncoderB_Cnt++;
-    else if (ra_level != 0 && rb_level != 0) // A上升沿 B为高电平 反转
-      EncoderB_Cnt--;
-    else if (ra_level == 0 && rb_level == 0) // A下降沿 B为低电平 反转
-      EncoderB_Cnt--;
-    else if (ra_level == 0 && rb_level != 0) // A下降沿 B为高电平 正转
-      EncoderB_Cnt++;
-      DL_GPIO_clearInterruptStatus(GPIOB, GPIO_ENCODER_PIN_2A_PIN);
-   }
-
-  if((iidx & GPIO_ENCODER_PIN_2B_IIDX)==GPIO_ENCODER_PIN_2B_IIDX) 
-  {       // 右轮 B 相引脚产生中断
-    if (ra_level != 0 && rb_level == 0) // B下降沿 A为高电平 反转
-      EncoderB_Cnt--;
-    else if (ra_level != 0 && rb_level != 0) // B上升沿 A为高电平 正转
-      EncoderB_Cnt++;
-    else if (ra_level == 0 && rb_level == 0) // B下降沿 A为低电平 正转
-      EncoderB_Cnt++;
-    else if (ra_level == 0 && rb_level != 0) // B上升沿 A为低电平 反转
-      EncoderB_Cnt--;
-      DL_GPIO_clearInterruptStatus(GPIOB, GPIO_ENCODER_PIN_2B_PIN); 
-  }*/
-  /*
-  uint8_t Encodeg_flag,A_flag,B_flag,direction_flag;
-	uint8_t Encodeg_flag_R,C_flag,D_flag,direction_flag_R;
-	
-	switch(DL_Interrupt_getPendingGroup(DL_INTERRUPT_GROUP_1)) 
-	{
-		case GPIO_ENCODER_INT_IIDX:
-		if(DL_GPIO_getEnabledInterruptStatus(GPIOA, GPIO_ENCODER_PIN_1A_PIN))
-		{
-        Encodeg_flag = 1;//A�ж�
-        if(DL_GPIO_readPins(GPIOA, GPIO_ENCODER_PIN_1A_PIN)) A_flag = 1;
-        else A_flag = 0;
-        if(DL_GPIO_readPins(GPIOA, GPIO_ENCODER_PIN_1B_PIN)) B_flag = 1;
-        else B_flag = 0;
-        direction_flag = A_flag+B_flag+Encodeg_flag;                    //Sum to determine the direction of rotation, even forward, odd reverse
-        if(direction_flag == 0 || direction_flag ==2)EncoderA_Cnt++;
-        else EncoderA_Cnt--;
-            
-			  DL_GPIO_clearInterruptStatus(GPIOA, GPIO_ENCODER_PIN_1A_PIN);
-		}
-		
-		
-		if(DL_GPIO_getEnabledInterruptStatus(GPIOA, GPIO_ENCODER_PIN_1B_PIN))
-		{
-            Encodeg_flag = 0;
-            if(DL_GPIO_readPins(GPIOA, GPIO_ENCODER_PIN_1A_PIN)) A_flag = 1;
-            else A_flag = 0;
-            if(DL_GPIO_readPins(GPIOA, GPIO_ENCODER_PIN_1B_PIN)) B_flag = 1;
-            else B_flag = 0;
-            direction_flag = A_flag+B_flag+Encodeg_flag;
-            if(direction_flag == 0 || direction_flag ==2)EncoderA_Cnt++;
-            else EncoderA_Cnt--;
-            
-			DL_GPIO_clearInterruptStatus(GPIOA, GPIO_ENCODER_PIN_1B_PIN);
-		}
- 		
-		
-		if(DL_GPIO_getEnabledInterruptStatus(GPIOA, GPIO_ENCODER_PIN_2A_PIN))
-		{
-            Encodeg_flag_R = 1;
-            if(DL_GPIO_readPins(GPIOA, GPIO_ENCODER_PIN_2A_PIN)) C_flag = 1;
-            else C_flag = 0;
-            if(DL_GPIO_readPins(GPIOA, GPIO_ENCODER_PIN_2B_PIN)) D_flag = 1;
-            else D_flag = 0;
-            direction_flag_R = C_flag+D_flag+Encodeg_flag_R;
-            if(direction_flag_R == 0 || direction_flag_R ==2)EncoderB_Cnt++;
-            else EncoderB_Cnt--;
-            
-			DL_GPIO_clearInterruptStatus(GPIOA, GPIO_ENCODER_PIN_2A_PIN);
-		}
-		
-		if(DL_GPIO_getEnabledInterruptStatus(GPIOA, GPIO_ENCODER_PIN_2B_PIN))
-		{
-            Encodeg_flag_R = 0;
-            if(DL_GPIO_readPins(GPIOA, GPIO_ENCODER_PIN_2A_PIN)) C_flag = 1;
-            else C_flag = 0;
-            if(DL_GPIO_readPins(GPIOA, GPIO_ENCODER_PIN_2B_PIN)) D_flag = 1;
-            else D_flag = 0;
-            direction_flag_R = C_flag+D_flag+Encodeg_flag_R;
-            if(direction_flag_R == 0 || direction_flag_R ==2)EncoderB_Cnt++;
-            else EncoderB_Cnt--;
-            
-			DL_GPIO_clearInterruptStatus(GPIOA, GPIO_ENCODER_PIN_2B_PIN);
-		}
-    uint32_t iidx = DL_GPIO_getPendingInterrupt(GPIO_ENCODER_PORT);
-  la_level = DL_GPIO_readPins(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_1A_PIN);
-  lb_level = DL_GPIO_readPins(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_1B_PIN);
-  ra_level = DL_GPIO_readPins(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_2A_PIN);
-  rb_level = DL_GPIO_readPins(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_2B_PIN);
-
-
-   if((iidx&GPIO_ENCODER_PIN_1A_IIDX)==GPIO_ENCODER_PIN_1A_IIDX)
-   {      // 左轮 A 相引脚产生中断
-    if (la_level != 0 && lb_level == 0) // A上升沿 B为低电平 正转
-      EncoderA_Cnt++;
-    else if (la_level != 0 && lb_level != 0) // A上升沿 B为高电平 反转
-      EncoderA_Cnt--;
-    else if (la_level == 0 && lb_level == 0) // A下降沿 B为低电平 反转
-      EncoderA_Cnt--;
-    else if (la_level == 0 && lb_level != 0) // A下降沿 B为高电平 正转
-      EncoderA_Cnt++;
-
-    DL_GPIO_clearInterruptStatus(GPIOB, GPIO_ENCODER_PIN_1A_PIN);
-  }
-
-  if((iidx & GPIO_ENCODER_PIN_1B_IIDX)==GPIO_ENCODER_PIN_1B_IIDX)  
-  {     // 左轮 B 相引脚产生中断
-    if (la_level != 0 && lb_level == 0) // B下降沿 A为高电平 反转
-      EncoderA_Cnt--;
-    else if (la_level != 0 && lb_level != 0) // B上升沿 A为高电平 正转
-      EncoderA_Cnt++;
-    else if (la_level == 0 && lb_level == 0) // B下降沿 A为低电平 正转
-      EncoderA_Cnt++;
-    else if (la_level == 0 && lb_level != 0) // B上升沿 A为低电平 反转
-      EncoderA_Cnt--;
-    DL_GPIO_clearInterruptStatus(GPIOB, GPIO_ENCODER_PIN_1B_PIN);  
-  }
-
-  if((iidx & GPIO_ENCODER_PIN_2A_IIDX)== GPIO_ENCODER_PIN_2A_IIDX)
-  {      // 右轮 A 相引脚产生中断
-    if (ra_level != 0 && rb_level == 0) // A上升沿 B为低电平 正转
-      EncoderB_Cnt++;
-    else if (ra_level != 0 && rb_level != 0) // A上升沿 B为高电平 反转
-      EncoderB_Cnt--;
-    else if (ra_level == 0 && rb_level == 0) // A下降沿 B为低电平 反转
-      EncoderB_Cnt--;
-    else if (ra_level == 0 && rb_level != 0) // A下降沿 B为高电平 正转
-      EncoderB_Cnt++;
-      DL_GPIO_clearInterruptStatus(GPIOB, GPIO_ENCODER_PIN_2A_PIN);
-   }
-
-  if((iidx & GPIO_ENCODER_PIN_2B_IIDX)==GPIO_ENCODER_PIN_2B_IIDX) 
-  {       // 右轮 B 相引脚产生中断
-    if (ra_level != 0 && rb_level == 0) // B下降沿 A为高电平 反转
-      EncoderB_Cnt--;
-    else if (ra_level != 0 && rb_level != 0) // B上升沿 A为高电平 正转
-      EncoderB_Cnt++;
-    else if (ra_level == 0 && rb_level == 0) // B下降沿 A为低电平 正转
-      EncoderB_Cnt++;
-    else if (ra_level == 0 && rb_level != 0) // B上升沿 A为低电平 反转
-      EncoderB_Cnt--;
-      DL_GPIO_clearInterruptStatus(GPIOB, GPIO_ENCODER_PIN_2B_PIN); 
- 
-		break;
-	}*/
-
- //iidx = DL_GPIO_getPendingInterrupt(GPIO_ENCODER_PORT);
-  /*la_level = DL_GPIO_readPins(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_1A_PIN);
-  lb_level = DL_GPIO_readPins(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_1B_PIN);
-  ra_level = DL_GPIO_readPins(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_2A_PIN);
-  rb_level = DL_GPIO_readPins(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_2B_PIN);*/
-    /*if((iidx & GPIO_ENCODER_PIN_1A_PIN)==GPIO_ENCODER_PIN_1A_PIN)
-    {
-      if(!DL_GPIO_readPins(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_1B_PIN)) {
-            EncoderA_Cnt++;
-      }
-      else{
-          EncoderA_Cnt--;
-      }
-      DL_GPIO_clearInterruptStatus(GPIOB, GPIO_ENCODER_PIN_1A_PIN);
-    }
-      if((iidx&GPIO_ENCODER_PIN_2A_PIN)==GPIO_ENCODER_PIN_2A_PIN)
-    {
-      if(!DL_GPIO_readPins(GPIO_ENCODER_PORT, GPIO_ENCODER_PIN_2B_PIN)) {
-          EncoderB_Cnt++;
-      }
-      else{
-          EncoderB_Cnt--;
-      }
-      DL_GPIO_clearInterruptStatus(GPIOB, GPIO_ENCODER_PIN_2B_PIN);
-    } */
-}
 
 void COMPARE_0_INST_IRQHandler()
 {
@@ -412,7 +170,7 @@ void TIMER_0_INST_IRQHandler() {
   Cnt_1ms++;
   if(Cnt_1ms%T_Velocity==0)
   {
-     UpdateEncoderFlag=1;
+     Velocity_PID_UpdateFlag=1;
      Cnt_1ms=0;
   }
 

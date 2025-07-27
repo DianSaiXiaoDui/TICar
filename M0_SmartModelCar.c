@@ -7,6 +7,8 @@
 #include "ti/driverlib/dl_timerg.h"
 #include "ti/driverlib/m0p/dl_core.h"
 #include "ti_msp_dl_config.h"
+#include "ti/driverlib/dl_timer.h"
+#include <stdio.h>
 
 
 volatile uint8_t Time_Count_1mS_Index = 0x0;
@@ -82,21 +84,37 @@ int main(void) {
   NVIC_EnableIRQ(COMPARE_0_INST_INT_IRQN);
   NVIC_EnableIRQ(COMPARE_1_INST_INT_IRQN);
   NVIC_EnableIRQ(TIMER_0_INST_INT_IRQN);
-  NVIC_EnableIRQ(GPIO_ENCODER_INT_IRQN);
+  // NVIC_EnableIRQ(GPIO_ENCODER_INT_IRQN);
   NVIC_EnableIRQ(ADC12_0_INST_INT_IRQN);
 
   DL_TimerG_startCounter(COMPARE_0_INST);
   DL_TimerG_startCounter(COMPARE_1_INST);
   DL_TimerA_startCounter(TIMER_0_INST);
   DL_TimerG_startCounter(PWM_DC_INST);
+  DL_TimerA_startCounter(PWM_PTZ_INST);
 
-  DC_Start(0);
+
+  // DC_Start(0);
   // 正转时， 左边置低， 右边占空比越小速度越快， 零为满速
   // 反转时，左边置高，右边占空比越小速度越快
  
 
 
- // delay_cycles(32000000);
+  // for (int i = 250; i <= 1250; i += 25)
+  // {
+  //   DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, i,GPIO_PWM_PTZ_C1_IDX);
+  //   float per = 1.0 * i / 1250;
+  //   printf("percentage: %d \n", i);
+  //   delay_cycles(16000000);
+  // }
+  // while(1)
+  //   DL_Timer_setCaptureCompareValue(PWM_PTZ_INST,(uint16_t)(740),GPIO_PWM_PTZ_C0_IDX );//PWM
+  // delay_cycles(64000000);
+  // DL_Timer_setCaptureCompareValue(PWM_PTZ_INST,(uint16_t)(800),GPIO_PWM_PTZ_C0_IDX );//PWM
+  // delay_cycles(32000000);
+  // DL_Timer_setCaptureCompareValue(PWM_PTZ_INST,(uint16_t)(400),GPIO_PWM_PTZ_C0_IDX );//PWM
+  // delay_cycles(32000000);
+
   //delay_cycles(32000000);
   //DC_Stop();
   // set_pwm_left(20, 1);

@@ -6,8 +6,11 @@
 extern float targetRads[]; // 目标弧度值
 void calculateTargetRads(float x, float y);
 float RadToDegree(float rad);
-uint16_t DegreeToCCR(uint16_t MaxDegree,float Degree);
+uint16_t DegreeToCCRX(float Degree);
+uint16_t DegreeToCCRY(float Degree);
+
 void SetDegree(float xDegree,float yDegree);
+void draw(float x, float y);
 
 
 #endif //__PTZCONTROL_H__

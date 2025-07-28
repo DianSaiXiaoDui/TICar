@@ -15,31 +15,43 @@ float px, py;
 
 struct Circle c = {.cx = 1, .cy = 1, .r = 10};
 
-
-void SetCenter(float x, float y, struct Circle cir)
+struct PointFollower 
 {
-    cir.cx = x;
-    cir.cy = y;
+    float x, dis;
+}follower;
+
+void SetFollowerX(float x)
+{
+    follower.x = x;
 }
 
-void SetRadius(float _r, struct Circle cir)
+void SetFollowerDis(float dis)
 {
-    cir.r = _r;
+    follower.dis = dis;
+}
+
+void SetCenter(float x, float y)
+{
+    c.cx = x;
+    c.cy = y;
+}
+
+void SetRadius(float _r)
+{
+    c.r = _r;
 }
 
 
 void CalculateTargetRads(float x, float y)
 {
-    targetRads[0] = middleRadX - atan(x/dis);
-    targetRads[1] = middleRadY + atan(y/dis);
+    targetRads[0] = middleRadX - atan(x/follower.dis);
+    targetRads[1] = middleRadY + atan(y/follower.dis);
 }
 
 float RadToDegree(float rad)
 {
     return rad * (180.0 / M_PI);
 }
-
-
 
 int DegreeToCCRX(float Degree)
 {
@@ -64,6 +76,7 @@ void SetDegree(float xDegree,float yDegree)
 
 void FollowPoint(float x, float y)
 {
+    x -= follower.x;
     CalculateTargetRads(x, y);
     float xDegree = RadToDegree(targetRads[0]);
     float yDegree = RadToDegree(targetRads[1]);

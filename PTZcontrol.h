@@ -17,9 +17,11 @@ void SetDegree(float xDegree,float yDegree);
 void FollowPoint(float x, float y);
 void DrawCircle();
 
-void SetCenter(float x, float y, struct Circle cir);
+void SetCenter(float x, float y);
 
 
-void SetRadius(float _r, struct Circle cir);
+void SetRadius(float _r);
 
+void SetFollowerX(float x);
+void SetFollowerDis(float dis);
 #endif //__PTZCONTROL_H__

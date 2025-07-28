@@ -25,6 +25,13 @@ volatile uint16_t current_position_l = 0;
 volatile uint16_t current_position_r = 0;
 */
 
+// Follow Point 
+extern struct Circle c;
+extern struct PointFollower follower;
+float startX = 0;
+float startY = 0;
+float startDis = 50; // cm
+
 //CCD
 volatile uint8_t ADC_flag = 0;
 volatile uint16_t CCD_ADV_Origin[128];//采集到的原始CCD像素序列
@@ -39,6 +46,8 @@ uint8_t CCD_UpdateFlag=0; //CCD更新标志
 uint8_t T_Angle=100;//CCD调控周期（巡线）
 volatile uint32_t Angle_PID_Cnt;//巡线差速pid计数器
 extern Angle_PID_Struct Angle_PID;
+
+
 
 //电机
 volatile uint8_t MoveFlag;
@@ -68,7 +77,7 @@ volatile int32_t EncoderB_Cnt=0;//编码器B计数
 //速度pid
 extern BL_Velocity_PID_Struct BL_Velocity_PID;
 extern BR_Velocity_PID_Struct BR_Velocity_PID;
-extern struct Circle c;
+
 volatile uint8_t Velocity_PID_UpdateFlag=0;
 volatile char Velocity_Str[30];//串口查看速度波形 
 
@@ -144,7 +153,12 @@ int main(void) {
   //DC_Stop();
   // set_pwm_left(20, 1);
   // set_pwm_right(20, 1);
+  
+  SetFollowerX(startX);
+  SetFollowerDis(startDis);
+  SetRadius(10);
   FollowPoint(0, 0);
+
   delay_cycles(32000000);
   while (1) {
     

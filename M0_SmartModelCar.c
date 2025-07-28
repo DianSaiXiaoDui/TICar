@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "PTZcontrol.h"
+#include "CCR_PID.h"
 
 
 #define V_MAX 80
@@ -31,6 +32,23 @@ extern struct PointFollower follower;
 float startX = 0;
 float startY = 0;
 float startDis = 50; // cm
+
+//串口通信
+volatile uint8_t K230_Uart2_RxBuffer[128];
+volatile uint8_t K230_receive_len = 0;
+volatile uint8_t K230_receive_completed = 0;
+volatile uint8_t K230_receive = 0;
+
+
+//云台PID控制
+int32_t CCR_PIDflag = 0; 
+float targetX;
+float currentX;
+float targetY;
+float currentY;
+int16_t currentCCRX;
+int16_t currentCCRY;
+
 
 //CCD
 volatile uint8_t ADC_flag = 0;
@@ -110,6 +128,10 @@ uint32_t Delay_ms(uint32_t n)
     return cycles;
 }
 
+
+//处理串口命令
+void ParseAndExecuteCommand(const char* buffer);
+
 int main(void) {
   SYSCFG_DL_init();
   DC_Init();
@@ -126,6 +148,8 @@ int main(void) {
   DL_TimerA_startCounter(TIMER_0_INST);
   DL_TimerG_startCounter(PWM_DC_INST);
   DL_TimerA_startCounter(PWM_PTZ_INST);
+  CCRX_PID_Init();
+  CCRY_PID_Init();
 
 
   // DC_Start(0);
@@ -162,6 +186,12 @@ int main(void) {
   delay_cycles(32000000);
   while (1) {
     
+    if(K230_receive_completed)
+    {
+      ParseAndExecuteCommand((char*)K230_Uart2_RxBuffer);
+      K230_receive_completed = 0;
+    }
+
     FollowPoint(0, 0);
     // DrawCircle();
     /*CCD_Read();
@@ -233,6 +263,23 @@ int main(void) {
      // Angle_PID_SetCurX(TargetIdx);
      // Angle_PID_Update();
       CCD_UpdateFlag=0;
+    }
+
+    if(CCR_PIDflag)
+    {
+      CCRX_PID_Update();
+      CCRY_PID_Update();
+      currentCCRX =  DL_Timer_getCaptureCompareValue(PWM_PTZ_INST,GPIO_PWM_PTZ_C1_IDX);
+      currentCCRY =  DL_Timer_getCaptureCompareValue(PWM_PTZ_INST,GPIO_PWM_PTZ_C0_IDX);
+      currentCCRX += CCRX_PID.DeltaCCR;
+      currentCCRY -= CCRY_PID.DeltaCCR;
+  //	currentCCRX = (currentCCRX < maxCCRX)? currentCCRX : maxCCRX;
+  //	currentCCRX = (currentCCRX > minCCRX)? currentCCRX : minCCRX;
+  //	currentCCRY = (currentCCRY < maxCCRY)? currentCCRY : maxCCRY;
+  //	currentCCRY = (currentCCRY > minCCRY)? currentCCRY : minCCRY;
+      DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, currentCCRX, GPIO_PWM_PTZ_C1_IDX);
+      DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, currentCCRY, GPIO_PWM_PTZ_C0_IDX); 
+      CCR_PIDflag = 0;
     }
 
   }
@@ -358,4 +405,53 @@ void UART_SCREEN_TransmitString(const char* str)
       DL_UART_transmitDataBlocking(UART_SCREEN_INST , (uint8_t)*str);
       str++;
    }
+}
+
+
+
+//接收K230传来的信息
+void UART_K230_INST_IRQHandler(void)
+{
+    switch (DL_UART_Main_getPendingInterrupt(UART_K230_INST)) {
+       case DL_UART_MAIN_IIDX_RX:
+        K230_receive = DL_UART_Main_receiveData(UART_K230_INST); // 接收一个字节
+        if (K230_receive == '\r')
+        {
+          // 忽略\r字符
+        }
+        else if (K230_receive == '\n')
+        {
+          K230_Uart2_RxBuffer[K230_receive_len] = '\0';
+          K230_receive_len = 0;        // 重置字节索引
+          K230_receive_completed = 1;  // 完成一次完整命令接收
+        }
+        else
+        {
+          K230_Uart2_RxBuffer[K230_receive_len] = K230_receive;
+          if (K230_receive_len >= sizeof(K230_Uart2_RxBuffer) - 1)
+          {
+            K230_receive_len = 0;
+          }
+        }
+           break;
+        default: 
+            break;
+    }
+}
+
+
+/*解析并执行串口命令*/
+void ParseAndExecuteCommand(const char* buffer) {
+	if (strncmp(buffer,"detect",6) == 0)
+	{
+		if (sscanf(buffer + 6, " targetX: %f currentX: %f targetY: %f currentY: %f", &targetX,&currentX,&targetY,&currentY) == 4)
+		{
+			CCRX_PID.Target = targetX;
+			CCRX_PID.Current= currentX;
+			CCRY_PID.Target = targetY;
+			CCRY_PID.Current= currentY;
+			CCR_PIDflag = 1;
+		}
+	}
+
 }

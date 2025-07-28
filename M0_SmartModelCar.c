@@ -139,6 +139,8 @@ int main(void) {
   DL_TimerA_startCounter(TIMER_0_INST);
   DL_TimerG_startCounter(PWM_DC_INST);
   DL_TimerA_startCounter(PWM_PTZ_INST);
+  CCRX_PID_Init();
+  CCRY_PID_Init();
 
 
   // DC_Start(0);

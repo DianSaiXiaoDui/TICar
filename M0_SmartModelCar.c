@@ -162,7 +162,8 @@ int main(void) {
   delay_cycles(32000000);
   while (1) {
     
-    DrawCircle();
+    FollowPoint(0, 0);
+    // DrawCircle();
     /*CCD_Read();
     CCD_MeanFilter();
     CCD_FindBlackLine();*/

@@ -55,7 +55,7 @@ float RadToDegree(float rad)
 
 int DegreeToCCRX(float Degree)
 {
-    double val = Degree * 1425 / 270 + 212.5;
+    double val = Degree * 1000 / 180 + 250;
     clip(&val, 250, 1250);
     return (int)(val);
 }

@@ -48,7 +48,10 @@ float targetY;
 float currentY;
 int16_t currentCCRX;
 int16_t currentCCRY;
-
+int16_t maxCCRX = 1250;
+int16_t minCCRX = 250;
+int16_t maxCCRY = 1250;
+int16_t minCCRY = 250;
 
 //CCD
 volatile uint8_t ADC_flag = 0;
@@ -274,10 +277,10 @@ int main(void) {
       currentCCRY =  DL_Timer_getCaptureCompareValue(PWM_PTZ_INST,GPIO_PWM_PTZ_C0_IDX);
       currentCCRX += CCRX_PID.DeltaCCR;
       currentCCRY -= CCRY_PID.DeltaCCR;
-  //	currentCCRX = (currentCCRX < maxCCRX)? currentCCRX : maxCCRX;
-  //	currentCCRX = (currentCCRX > minCCRX)? currentCCRX : minCCRX;
-  //	currentCCRY = (currentCCRY < maxCCRY)? currentCCRY : maxCCRY;
-  //	currentCCRY = (currentCCRY > minCCRY)? currentCCRY : minCCRY;
+  	currentCCRX = (currentCCRX < maxCCRX)? currentCCRX : maxCCRX;
+  	currentCCRX = (currentCCRX > minCCRX)? currentCCRX : minCCRX;
+  	currentCCRY = (currentCCRY < maxCCRY)? currentCCRY : maxCCRY;
+  	currentCCRY = (currentCCRY > minCCRY)? currentCCRY : minCCRY;
       DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, currentCCRX, GPIO_PWM_PTZ_C1_IDX);
       DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, currentCCRY, GPIO_PWM_PTZ_C0_IDX); 
       CCR_PIDflag = 0;

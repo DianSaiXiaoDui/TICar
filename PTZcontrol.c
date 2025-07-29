@@ -5,7 +5,7 @@
 #include "ti_msp_dl_config.h"
 #include "Velocity_PID.h"
 
-const float middleRadX = 0.75 * M_PI;
+const float middleRadX = 0.5 * M_PI;
 const float middleRadY = 0.5 * M_PI;
 float dis = 100.0; // cm
 float targetRads[2] = {0.75 * M_PI, 0.5 * M_PI}; // 初始化目标角度（弧度）
@@ -86,13 +86,13 @@ void FollowPoint(float x, float y)
 
 void DrawCircle()
 {
-    for(float i = 0; i < 2 * M_PI; i += 0.05)
+    for(float i = 0; i < 2 * M_PI; i += 0.02)
     {
         
         px = c.cx + c.r * cos(i);
         py = c.cx + c.r * sin(i);
         // printf("x: %f, y: %f \n", px, py);
         FollowPoint(px, py);
-        delay_cycles(160000);
+        delay_cycles(80000);
     }
 }

@@ -34,10 +34,10 @@ float startY = 0;
 float startDis = 50; // cm
 
 //串口通信
-volatile uint8_t K230_Uart2_RxBuffer[128];
-volatile uint8_t K230_receive_len = 0;
-volatile uint8_t K230_receive_completed = 0;
-volatile uint8_t K230_receive = 0;
+uint8_t K230_Uart2_RxBuffer[128];
+uint8_t K230_receive_len = 0;
+uint8_t K230_receive_completed = 0;
+uint8_t K230_receive = 0;
 
 
 //云台PID控制
@@ -142,6 +142,7 @@ int main(void) {
   //NVIC_EnableIRQ(GPIO_ENCODER_INT_IRQN);
   NVIC_EnableIRQ(ADC12_0_INST_INT_IRQN);
   NVIC_EnableIRQ(UART_SCREEN_INST_INT_IRQN);
+  NVIC_EnableIRQ(UART_K230_INST_INT_IRQN);
 
   DL_TimerG_startCounter(COMPARE_0_INST);
   DL_TimerG_startCounter(COMPARE_1_INST);
@@ -162,7 +163,7 @@ int main(void) {
   // {
   //   DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, i,GPIO_PWM_PTZ_C1_IDX);
   //   float per = 1.0 * i / 1250;
-  //   printf("percentage: %d \n", i);
+  //   // printf("percentage: %d \n", i);
   //   delay_cycles(16000000);
   // }
   // while(1)
@@ -180,9 +181,9 @@ int main(void) {
   
   SetFollowerX(startX);
   SetFollowerDis(startDis);
-  SetRadius(10);
+  SetRadius(5);
   FollowPoint(0, 0);
-
+  DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, 750,GPIO_PWM_PTZ_C1_IDX);
   delay_cycles(32000000);
   while (1) {
     
@@ -192,7 +193,7 @@ int main(void) {
       K230_receive_completed = 0;
     }
 
-    FollowPoint(0, 0);
+    // FollowPoint(0, 0);
     // DrawCircle();
     /*CCD_Read();
     CCD_MeanFilter();
@@ -427,7 +428,7 @@ void UART_K230_INST_IRQHandler(void)
         }
         else
         {
-          K230_Uart2_RxBuffer[K230_receive_len] = K230_receive;
+          K230_Uart2_RxBuffer[K230_receive_len++] = K230_receive;
           if (K230_receive_len >= sizeof(K230_Uart2_RxBuffer) - 1)
           {
             K230_receive_len = 0;

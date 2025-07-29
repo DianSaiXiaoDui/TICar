@@ -13,10 +13,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "PTZcontrol.h"
+#include "CCR_PID.h"
+
 
 #define V_MAX 80
 #define V_MIN 10
-
 volatile uint8_t Time_Count_1mS_Index = 0x0;
 /*
 volatile uint16_t EncoderA_Cnt = 32500;
@@ -24,6 +26,33 @@ volatile uint16_t EncoderB_Cnt = 32500;
 volatile uint16_t current_position_l = 0;
 volatile uint16_t current_position_r = 0;
 */
+
+// Follow Point 
+extern struct Circle c;
+extern struct PointFollower follower;
+float startX = 0;
+float startY = 0;
+float startDis = 50; // cm
+
+//串口通信
+uint8_t K230_Uart2_RxBuffer[128];
+uint8_t K230_receive_len = 0;
+uint8_t K230_receive_completed = 0;
+uint8_t K230_receive = 0;
+
+
+//云台PID控制
+int32_t CCR_PIDflag = 0; 
+float targetX;
+float currentX;
+float targetY;
+float currentY;
+int16_t currentCCRX;
+int16_t currentCCRY;
+int16_t maxCCRX = 1250;
+int16_t minCCRX = 250;
+int16_t maxCCRY = 1250;
+int16_t minCCRY = 250;
 
 //CCD
 volatile uint8_t ADC_flag = 0;
@@ -39,6 +68,8 @@ volatile uint8_t CCD_UpdateFlag=0; //CCD更新标志
 volatile uint8_t T_Angle=60;//CCD调控周期（巡线）
 volatile uint32_t Angle_PID_Cnt;//巡线差速pid计数器
 extern Angle_PID_Struct Angle_PID;
+
+
 
 //电机
 volatile uint8_t MoveFlag;
@@ -76,6 +107,7 @@ volatile int32_t EncoderB_Cnt=0;//编码器B计数
 //速度pid
 extern BL_Velocity_PID_Struct BL_Velocity_PID;
 extern BR_Velocity_PID_Struct BR_Velocity_PID;
+
 volatile uint8_t Velocity_PID_UpdateFlag=0;
 volatile char Velocity_Str[30];//串口查看速度波形 
 
@@ -110,6 +142,10 @@ void UART_SCREEN_TransmitStrimng(const char* str);
 //巡线模式
 volatile uint8_t TrackLineMode=2; //1:速度pid+差速pid 2：直接差速pid
 
+
+//处理串口命令
+void ParseAndExecuteCommand(const char* buffer);
+
 int main(void) {
   SYSCFG_DL_init();
   DC_Init();
@@ -121,24 +157,62 @@ int main(void) {
   //NVIC_EnableIRQ(GPIO_ENCODER_INT_IRQN);
   NVIC_EnableIRQ(ADC12_0_INST_INT_IRQN);
   NVIC_EnableIRQ(UART_SCREEN_INST_INT_IRQN);
+  NVIC_EnableIRQ(UART_K230_INST_INT_IRQN);
 
   DL_TimerG_startCounter(COMPARE_0_INST);
   DL_TimerG_startCounter(COMPARE_1_INST);
   DL_TimerA_startCounter(TIMER_0_INST);
   DL_TimerG_startCounter(PWM_DC_INST);
   DL_TimerA_startCounter(PWM_PTZ_INST);
+  CCRX_PID_Init();
+  CCRY_PID_Init();
 
 
   // DC_Start(0);
   // 正转时， 左边置低， 右边占空比越小速度越快， 零为满速
   // 反转时， 左边置高， 右边占空比越小速度越快
-  if(TrackLineMode==2)
-      T_Angle=10;
-  else 
-      T_Angle=100; 
-   
-  while (1) {
+ 
 
+
+  // for (int i = 250; i <= 1250; i += 25)
+  // {
+  //   DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, i,GPIO_PWM_PTZ_C1_IDX);
+  //   float per = 1.0 * i / 1250;
+  //   // printf("percentage: %d \n", i);
+  //   delay_cycles(16000000);
+  // }
+  // while(1)
+  //   DL_Timer_setCaptureCompareValue(PWM_PTZ_INST,(uint16_t)(740),GPIO_PWM_PTZ_C0_IDX );//PWM
+  // delay_cycles(64000000);
+  // DL_Timer_setCaptureCompareValue(PWM_PTZ_INST,(uint16_t)(800),GPIO_PWM_PTZ_C0_IDX );//PWM
+  // delay_cycles(32000000);
+  // DL_Timer_setCaptureCompareValue(PWM_PTZ_INST,(uint16_t)(400),GPIO_PWM_PTZ_C0_IDX );//PWM
+  // delay_cycles(32000000);
+
+  //delay_cycles(32000000);
+  //DC_Stop();
+  // set_pwm_left(20, 1);
+  // set_pwm_right(20, 1);
+  
+  SetFollowerX(startX);
+  SetFollowerDis(startDis);
+  SetRadius(5);
+  FollowPoint(0, 0);
+  DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, 750,GPIO_PWM_PTZ_C1_IDX);
+  delay_cycles(32000000);
+  while (1) {
+    
+    if(K230_receive_completed)
+    {
+      ParseAndExecuteCommand((char*)K230_Uart2_RxBuffer);
+      K230_receive_completed = 0;
+    }
+
+    // FollowPoint(0, 0);
+    // DrawCircle();
+    /*CCD_Read();
+    CCD_MeanFilter();
+    CCD_FindBlackLine();*/
 
     //串口屏
         if (Touch_pannel_receive_completed == 1)
@@ -210,6 +284,23 @@ int main(void) {
         Set_TargetVelocity(V_Base,V_Base);
        }
       CCD_UpdateFlag=0;
+    }
+
+    if(CCR_PIDflag)
+    {
+      CCRX_PID_Update();
+      CCRY_PID_Update();
+      currentCCRX =  DL_Timer_getCaptureCompareValue(PWM_PTZ_INST,GPIO_PWM_PTZ_C1_IDX);
+      currentCCRY =  DL_Timer_getCaptureCompareValue(PWM_PTZ_INST,GPIO_PWM_PTZ_C0_IDX);
+      currentCCRX += CCRX_PID.DeltaCCR;
+      currentCCRY -= CCRY_PID.DeltaCCR;
+  	currentCCRX = (currentCCRX < maxCCRX)? currentCCRX : maxCCRX;
+  	currentCCRX = (currentCCRX > minCCRX)? currentCCRX : minCCRX;
+  	currentCCRY = (currentCCRY < maxCCRY)? currentCCRY : maxCCRY;
+  	currentCCRY = (currentCCRY > minCCRY)? currentCCRY : minCCRY;
+      DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, currentCCRX, GPIO_PWM_PTZ_C1_IDX);
+      DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, currentCCRY, GPIO_PWM_PTZ_C0_IDX); 
+      CCR_PIDflag = 0;
     }
 
 	if(CCD_UpdateFlag==1 && TrackLineMode==2) //巡线模式2，角度pid更新
@@ -361,4 +452,53 @@ void UART_SCREEN_TransmitString(const char* str)
       DL_UART_transmitDataBlocking(UART_SCREEN_INST , (uint8_t)*str);
       str++;
    }
+}
+
+
+
+//接收K230传来的信息
+void UART_K230_INST_IRQHandler(void)
+{
+    switch (DL_UART_Main_getPendingInterrupt(UART_K230_INST)) {
+       case DL_UART_MAIN_IIDX_RX:
+        K230_receive = DL_UART_Main_receiveData(UART_K230_INST); // 接收一个字节
+        if (K230_receive == '\r')
+        {
+          // 忽略\r字符
+        }
+        else if (K230_receive == '\n')
+        {
+          K230_Uart2_RxBuffer[K230_receive_len] = '\0';
+          K230_receive_len = 0;        // 重置字节索引
+          K230_receive_completed = 1;  // 完成一次完整命令接收
+        }
+        else
+        {
+          K230_Uart2_RxBuffer[K230_receive_len++] = K230_receive;
+          if (K230_receive_len >= sizeof(K230_Uart2_RxBuffer) - 1)
+          {
+            K230_receive_len = 0;
+          }
+        }
+           break;
+        default: 
+            break;
+    }
+}
+
+
+/*解析并执行串口命令*/
+void ParseAndExecuteCommand(const char* buffer) {
+	if (strncmp(buffer,"detect",6) == 0)
+	{
+		if (sscanf(buffer + 6, " targetX: %f currentX: %f targetY: %f currentY: %f", &targetX,&currentX,&targetY,&currentY) == 4)
+		{
+			CCRX_PID.Target = targetX;
+			CCRX_PID.Current= currentX;
+			CCRY_PID.Target = targetY;
+			CCRY_PID.Current= currentY;
+			CCR_PIDflag = 1;
+		}
+	}
+
 }

@@ -16,14 +16,14 @@ void SetVelocityL(float ratio);//设置左轮速度（左后）
 void SetVelocityR(float ratio);//设置右轮速度（右后）
 void SetVelocity(float ratioL,float ratioR);//设置左右轮速度（自动取决于移动模式）
 void UpdateVelocity(void);//获取速度,计算一个测速周期内的车速度和整体速度，更新移动距离
+/*以下电机驱动函数，速度pid闭环或纯开环*/ 
 void DC_Start(int8_t dir);//电机启动(前进/后退/左转/右转)，无距离限制
 void DC_Forward(float Distance,uint8_t inf);//电机前进（可选择移动距离）
 void DC_Backward(float Distance,uint8_t inf);//电机后退（可选择移动距离）
 void DC_Turn(int8_t dir,uint16_t angle); //非堵塞式旋转一定角度停下
 void DC_Stop(void);//电机停止
-void DC_Start_Full(void);//2GPIO驱动电机全速驱动
-void DC_Init_Full(void);//2GPIO驱动电机初始化
-void DC_Stop_Full(void);//2GPIO驱动电机停止驱动
-void UpdateVelocityDouble(void);
+
+
+void SwitchDriveMode(int8_t mode);//切换驱动模式
 
 #endif /* "DC.h" */

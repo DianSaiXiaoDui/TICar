@@ -1,5 +1,8 @@
 #include "DC.h"
 #include "Velocity_PID.h"
+#include "CCD.h"
+#include "CCD_ex.h"
+#include "Angle_PID.h"
 #include "ti/driverlib/m0p/dl_core.h"
 #include "ti_msp_dl_config.h"
 
@@ -16,7 +19,6 @@ extern volatile uint8_t DCStopFlag;
 extern volatile uint8_t TurnFlag;
 extern volatile uint16_t TurnPeriod;
 
-extern volatile uint8_t T_Velocity;
 extern volatile double V_L;
 extern volatile double V_R;
 extern volatile int8_t Dir_L;//左轮转动方向
@@ -24,12 +26,24 @@ extern volatile int8_t Dir_R;//右轮转动方向
 extern volatile int8_t Dir;//前进方向
 extern volatile double TotalDistance;//总移动距离
 extern volatile double TargetDistance;//目标移动距离
-
+extern volatile uint8_t T_Velocity_Update;//速度更新周期
+extern volatile uint8_t Velocity_PID_UpdateFlag;//速度pid更新标志
+extern volatile uint8_t Velocity_UpdateFlag;//速度更新标志
 extern volatile uint8_t EnableEncoderFlag;
 extern volatile int32_t  EncoderA_Cnt;
 extern volatile int32_t  EncoderB_Cnt;
 extern volatile int8_t DriveMode;
 extern volatile double V_Base;
+extern volatile double V_Turn;
+extern volatile uint8_t TrackLineMode;
+extern volatile double V_Ratio_Base_Straight;//基准直行速度比例
+extern volatile double V_Ratio_Base_Turn;//基准转弯速度比例
+extern volatile double K_Offset_FF;//左轮相对右轮的速度补偿系数(前驱前进)
+extern volatile double K_Offset_FB;//左轮相对右轮的速度补偿系数(前驱后退)
+
+//CCD
+extern uint8_t CCD_UpdateFlag;
+extern int16_t CCD_TargetIdx;
 
 //电机初始化
 void DC_Init(void)
@@ -172,13 +186,13 @@ void UpdateVelocity(void)
    //前驱模式，交换轮速
    if(DriveMode==-1)
    {
-     V_L=delta_distance_L_cm/(T_Velocity/1000.0);
-     V_R=delta_distance_R_cm/(T_Velocity/1000.0);
+     V_L=delta_distance_L_cm/(T_Velocity_Update/1000.0);
+     V_R=delta_distance_R_cm/(T_Velocity_Update/1000.0);
    }
    else if(DriveMode==1)
    {
-     V_L=-(delta_distance_R_cm/(T_Velocity/1000.0));
-     V_R=-(delta_distance_L_cm/(T_Velocity/1000.0));
+     V_L=-(delta_distance_R_cm/(T_Velocity_Update/1000.0));
+     V_R=-(delta_distance_L_cm/(T_Velocity_Update/1000.0));
    }
 
    //计算小车平均速度
@@ -187,7 +201,7 @@ void UpdateVelocity(void)
    //计算一个测速周期内小车移动距离,更新总距离
     if(MoveFlag==1 && EnableDistanceFlag==1)
     {
-    	TotalDistance+=(fabs(V_C)*(T_Velocity/1000.0));//更新总距离
+    	TotalDistance+=(fabs(V_C)*(T_Velocity_Update/1000.0));//更新总距离
     	if(TotalDistance>=TargetDistance)//达到目标距离后，直行停止
     	{
     		StraightStopFlag=1; 
@@ -197,40 +211,71 @@ void UpdateVelocity(void)
 
 }
 
+//启动电机
 void DC_Start(int8_t dir)
 {
-	if(dir==0) //直走
+  //巡线模式1
+  if(TrackLineMode==1)
+  {
+    if(dir==0) //直走
+    {
+      Set_TargetVelocity(V_Base,V_Base);//设置pid目标速度V_Base
+      SetVelocity(0.1,0.1);//启动电机
+      Dir_L=1;
+      Dir_R=1;
+      Dir=1;//前进
+    }
+    else if(dir==1)//右转
+    {
+      Set_TargetVelocity(V_Turn,-V_Turn);//设置pid目标速度V_Base
+      SetVelocity(0.1,-0.1);//启动电机
+      Dir_L=1;
+      Dir_R=-1;
+      Dir=110;
+    }
+    else if(dir==-1)//左转
+    {
+      Set_TargetVelocity(-V_Turn,V_Turn);//设置pid目标速度V_Base
+      SetVelocity(-0.1,0.1);//启动电机
+      Dir_L=-1;
+      Dir_R=1;
+      Dir=101;
+    }
+    else if(dir==10) //后退
+    {
+      Set_TargetVelocity(-V_Base,-V_Base);//设置pid目标速度V_Base
+      SetVelocity(-0.1,-0.1);//启动电机
+      Dir_L=-1;
+      Dir_R=-1;
+      Dir=-1;    
+    }
+  }
+
+  //巡线模式2(只考虑前进/后退)
+  else if(TrackLineMode==2)
+  {
+   if(dir==0) //直走
 	{
-	  Set_TargetVelocity(V_Base,V_Base);//设置pid目标速度V_Base
-	  SetVelocity(0.1,0.1);//启动电机
+    if(DriveMode==1)//前进
+	     SetVelocity(V_Ratio_Base_Straight*K_Offset_FF,V_Ratio_Base_Straight);
+    else if(DriveMode==-1)//后驱
+       SetVelocity(V_Ratio_Base_Straight,V_Ratio_Base_Straight*K_Offset_FB);
+       
     Dir_L=1;
     Dir_R=1;
     Dir=1;//前进
 	}
-	else if(dir==1)//右转
-	{
-	  Set_TargetVelocity(V_Base,-V_Base);//设置pid目标速度V_Base
-	  SetVelocity(0.1,-0.1);//启动电机
-    Dir_L=1;
-    Dir_R=-1;
-    Dir=110;
-	}
-	else if(dir==-1)//左转
-	{
-	  Set_TargetVelocity(-V_Base,V_Base);//设置pid目标速度V_Base
-	  SetVelocity(-0.1,0.1);//启动电机
-    Dir_L=-1;
-    Dir_R=1;
-    Dir=101;
-	}
 	else if(dir==10) //后退
 	{
-	  Set_TargetVelocity(-V_Base,-V_Base);//设置pid目标速度V_Base
-	  SetVelocity(-0.1,-0.1);//启动电机
+    if(DriveMode==1)//前驱
+	     SetVelocity(-V_Ratio_Base_Straight*K_Offset_FB,-V_Ratio_Base_Straight);
+    else if(DriveMode==-1)//后驱
+       SetVelocity(-V_Ratio_Base_Straight,-V_Ratio_Base_Straight*K_Offset_FF);
     Dir_L=-1;
     Dir_R=-1;
     Dir=-1;    
 	}
+  }
 }
 
 //停止电机
@@ -299,6 +344,16 @@ void DC_Backward(float Distance,uint8_t inf)//后退
 		  TargetDistance=Distance;
 	}
 }
+
+
+
+//切换驱动模式,mode:1:前驱，-1：后驱
+void SwitchDriveMode(int8_t mode)
+{
+   DriveMode=mode;
+}
+
+
 
 
 

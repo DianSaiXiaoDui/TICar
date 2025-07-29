@@ -3,6 +3,7 @@
 #include "Angle_PID.h"
 #include "CCD.h"
 #include "CCD_ex.h"
+#include "Drive.h"
 #include "ti/driverlib/dl_adc12.h"
 #include "ti/driverlib/dl_gpio.h"
 #include "ti/driverlib/dl_timerg.h"
@@ -29,13 +30,13 @@ volatile uint8_t ADC_flag = 0;
 volatile uint16_t CCD_ADV_Origin[128];//采集到的原始CCD像素序列
 volatile uint16_t CCD_ADV_Filtered[128];//滤波后的CCD像素序列
 volatile int16_t DxMax=0;//最大像素差分值
-int16_t DxMin=0;//最小像素差分值
-int16_t dX[128];//像素差分序列
-uint16_t MaxIdx=0;//最大像素跳变点坐标
-uint16_t MinIdx=0;//最小像素跳变点坐标
-uint16_t CCD_TargetIdx;//目标中心点坐标
-uint8_t CCD_UpdateFlag=0; //CCD更新标志
-uint8_t T_Angle=100;//CCD调控周期（巡线）
+volatile int16_t DxMin=0;//最小像素差分值
+volatile int16_t dX[128];//像素差分序列
+volatile uint16_t MaxIdx=0;//最大像素跳变点坐标
+volatile uint16_t MinIdx=0;//最小像素跳变点坐标
+volatile int16_t CCD_TargetIdx;//目标中心点坐标
+volatile uint8_t CCD_UpdateFlag=0; //CCD更新标志
+volatile uint8_t T_Angle=60;//CCD调控周期（巡线）
 volatile uint32_t Angle_PID_Cnt;//巡线差速pid计数器
 extern Angle_PID_Struct Angle_PID;
 
@@ -47,7 +48,10 @@ volatile uint8_t MotorStopFlag;
 volatile uint8_t TurnFlag;
 volatile uint32_t TurnPeriod;
 volatile uint32_t Velocity_PID_Cnt;//速度pid计数器
-volatile uint8_t T_Velocity=20;//测速周期
+volatile uint32_t Velocity_Update_Cnt;//测速计数器
+volatile uint8_t T_Velocity_PID=20;//速度pid调控周期
+volatile uint8_t T_Velocity_Update=10;//测速周期（10ms）
+volatile uint8_t Velocity_UpdateFlag=0;//更新测速标志
 volatile double V_L;
 volatile double V_R;
 volatile double NewVelocity;//测试时修改目标速度
@@ -56,7 +60,12 @@ volatile int8_t Dir_L;
 volatile int8_t Dir_R;
 volatile double TotalDistance;//总移动距离
 volatile double TargetDistance;//目标移动距离
-volatile double V_Base=30;//基准启动速度
+volatile double V_Base=20;//基准速度
+volatile double V_Ratio_Base_Straight=0.2;//基准直行速度比例
+volatile double V_Ratio_Base_Turn=0.2;//基准转弯速度比例
+volatile double K_Offset_FF=1;//左轮相对右轮的速度补偿系数(前驱前进)
+volatile double K_Offset_FB=1;//左轮相对右轮的速度补偿系数(前驱后退)
+volatile double V_Turn=20;//转弯轮速
 
 //编码器
 volatile uint8_t EnableEncoderFlag=0;
@@ -91,18 +100,21 @@ volatile uint8_t Touch_pannel_data_receive_start = 0;
 
 //驱动模式
 volatile int8_t DriveMode=1;//前驱（-1：后驱）
-void UART_SCREEN_TransmitString(const char* str);
-uint32_t Delay_ms(uint32_t n)
+void UART_SCREEN_TransmitStrimng(const char* str);
+/*uint32_t Delay_ms(uint32_t n)
 {
     uint32_t cycles=CPUCLK_FREQ*(n/1000.0);
     delay_cycles(cycles);
     return cycles;
-}
+}*/
+//巡线模式
+volatile uint8_t TrackLineMode=2; //1:速度pid+差速pid 2：直接差速pid
 
 int main(void) {
   SYSCFG_DL_init();
   DC_Init();
   Velocity_PID_Init();//速度pid初始化
+  Angle_PID_Init();
   NVIC_EnableIRQ(COMPARE_0_INST_INT_IRQN);
   NVIC_EnableIRQ(COMPARE_1_INST_INT_IRQN);
   NVIC_EnableIRQ(TIMER_0_INST_INT_IRQN);
@@ -120,28 +132,11 @@ int main(void) {
   // DC_Start(0);
   // 正转时， 左边置低， 右边占空比越小速度越快， 零为满速
   // 反转时， 左边置高， 右边占空比越小速度越快
- 
-
-
-  // for (int i = 250; i <= 1250; i += 25)
-  // {
-  //   DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, i,GPIO_PWM_PTZ_C1_IDX);
-  //   float per = 1.0 * i / 1250;
-  //   printf("percentage: %d \n", i);
-  //   delay_cycles(16000000);
-  // }
-  // while(1)
-  //   DL_Timer_setCaptureCompareValue(PWM_PTZ_INST,(uint16_t)(740),GPIO_PWM_PTZ_C0_IDX );//PWM
-  // delay_cycles(64000000);
-  // DL_Timer_setCaptureCompareValue(PWM_PTZ_INST,(uint16_t)(800),GPIO_PWM_PTZ_C0_IDX );//PWM
-  // delay_cycles(32000000);
-  // DL_Timer_setCaptureCompareValue(PWM_PTZ_INST,(uint16_t)(400),GPIO_PWM_PTZ_C0_IDX );//PWM
-  // delay_cycles(32000000);
-
-  //delay_cycles(32000000);
-  //DC_Stop();
-  // set_pwm_left(20, 1);
-  // set_pwm_right(20, 1);
+  if(TrackLineMode==2)
+      T_Angle=10;
+  else 
+      T_Angle=100; 
+   
   while (1) {
 
 
@@ -152,12 +147,15 @@ int main(void) {
         {
         // 车前进
         case 0x11:
-            DC_Start(0);
+            //MoveForward(100);
+            //DC_Start(0);
+            MoveAlongSquare(1,10);
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;    
         // 车后退    
         case 0x12:
-            DC_Start(10);           
+             NewMoveAlongSquare(1,10);
+            //DC_Start(10);           
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;
         // 车停止
@@ -166,8 +164,7 @@ int main(void) {
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;
         // 调整车速
-        case 0x14:
-            
+        case 0x14:            
             //float TargetSpeed=V_MIN+(V_MAX-V_MIN)*Touch_pannel_Uart0_RxBuffer[2]/100.0;
 				    //Set_TargetVelocity(TargetSpeed,TargetSpeed);
             V_Base=V_MIN+(V_MAX-V_MIN)*Touch_pannel_Uart0_RxBuffer[2]/100.0;
@@ -175,18 +172,18 @@ int main(void) {
             break;
         // 车左转90度
         case 0x17:
-            DC_Start(-1);
+            openLoopTurning(-1,90);
+            //DC_Start(-1);
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;
         // 车右转90度
         case 0x18:
-            DC_Start(1);
+            openLoopTurning(1,90);
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;
         // 车掉头
         case 0x19:
-            //Motor_Turn(-1, 180);
-            // openLoopTurning(1, 180);
+            openLoopTurning(1, 180);
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;            
         default:
@@ -194,26 +191,49 @@ int main(void) {
         }
         Touch_pannel_receive_completed = 0;
     }
-
-    //速度pid更新
-    if(MoveFlag==1 && Velocity_PID_UpdateFlag==1)
-    {
+   
+  if( Velocity_UpdateFlag==1)//更新测速
+  {
       UpdateVelocity();
-      Velocity_PID_Update();
-      Velocity_PID_UpdateFlag=0;
-    }
-
-    if(CCD_UpdateFlag==1)
-    {
+      Velocity_UpdateFlag=0;
+  }
+  if(CCD_UpdateFlag==1 && TrackLineMode==1) //巡线模式1，角度pid更新
+  {
       CCD_Read();
       CCD_DataProcess();
-     // Angle_PID_SetCurX(TargetIdx);
-     // Angle_PID_Update();
+      if(CCD_TargetIdx!=-1)
+      { 
+        Angle_PID_SetCurX(CCD_TargetIdx);
+        Angle_PID_Update();
+       }
+       else{
+        Set_TargetVelocity(V_Base,V_Base);
+       }
       CCD_UpdateFlag=0;
     }
 
+	if(CCD_UpdateFlag==1 && TrackLineMode==2) //巡线模式2，角度pid更新
+  {
+      CCD_Read();
+      CCD_DataProcess();
+      if(CCD_TargetIdx!=-1)
+      { 
+        Angle_PID_SetCurX(CCD_TargetIdx);
+        Angle_PID_Update();
+       }
+      CCD_UpdateFlag=0;
   }
+
+	//速度pid更新（巡线模式1）
+	if(MoveFlag==1 && Velocity_PID_UpdateFlag==1 && TrackLineMode==1)
+	{
+	   Velocity_PID_UpdateFlag=0;
+	   Velocity_PID_Update();//速度PID控制
+	}
+	}
+
 }
+
 
 
 void COMPARE_0_INST_IRQHandler()
@@ -267,15 +287,21 @@ void TIMER_0_INST_IRQHandler() {
 
   if(MoveFlag==1)
   {
-    Velocity_PID_Cnt++;
+     Velocity_PID_Cnt++;
      Angle_PID_Cnt++;
+     Velocity_Update_Cnt++;
 
-    if(Velocity_PID_Cnt % T_Velocity==0)
+    if(Velocity_PID_Cnt % T_Velocity_PID==0)
     {
       Velocity_PID_UpdateFlag=1;
       Velocity_PID_Cnt=0;
     }
-    if(Angle_PID_Cnt & T_Angle==0)
+    if(Velocity_Update_Cnt % T_Velocity_Update==0)
+    {
+      Velocity_UpdateFlag=1;
+      Velocity_Update_Cnt=0;
+    }
+    if(Angle_PID_Cnt % T_Angle==0)
     {
       Angle_PID_Cnt =0;
       CCD_UpdateFlag=1;

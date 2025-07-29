@@ -4,17 +4,27 @@
  *  Created on: Jul 9, 2025
  */
 #include "Angle_PID.h"
+#include "DC.h"
 #include "Velocity_PID.h"
 
-extern double V_Base;
-extern uint8_t MoveFlag;
+extern volatile double V_Base;
+extern volatile uint8_t MoveFlag;
+extern volatile int8_t DriveMode;//驱动模式
+extern volatile uint8_t TrackLineMode;
+extern volatile double V_Ratio_Base_Straight;//基准直行速度比例
+extern volatile double V_Ratio_Base_Turn;//基准转弯速度比例
+extern volatile double K_Offset_FF;//左轮相对右轮的速度补偿系数(前驱前进)
+extern volatile double K_Offset_FB;//左轮相对右轮的速度补偿系数(前驱后退)
+
 Angle_PID_Struct Angle_PID;//转向pid结构体
 
+//巡线模式1
 void Angle_PID_Init(void)
 {
- 
+  if(TrackLineMode==1)
+  {
    //巡线小车
-   Angle_PID.Kp=0.1;
+   Angle_PID.Kp=0.02;
    Angle_PID.Ki=0.0;
    Angle_PID.Kd=0.0;
    Angle_PID.P = 0;
@@ -31,8 +41,30 @@ void Angle_PID_Init(void)
    Angle_PID.OutputThreshH=5;
    Angle_PID.OutputThreshL = 0;
    Angle_PID.Reset=0;
-
+  }
+  else if(TrackLineMode==2)
+  {
+	Angle_PID.Kp=0.0015;
+	Angle_PID.Ki=0.0;
+	Angle_PID.Kd=0.0;
+	Angle_PID.P = 0;
+	Angle_PID.I = 0;
+	Angle_PID.D = 0;
+	Angle_PID.Error0=0;
+	Angle_PID.Error1=0;
+	Angle_PID.ErrorThresh = 0;
+	Angle_PID.ErrorInt=0;
+	Angle_PID.IThresh=0;
+	Angle_PID.CurX = 0;
+	Angle_PID.TargetX = 63;
+	Angle_PID.deltaVelocityRatio = 0;
+	Angle_PID.OutputThreshH=0.06;
+	Angle_PID.OutputThreshL = 0;
+	Angle_PID.Reset=0;
+  }
 }
+
+
 
 /* Private PID functions ---------------------------------------------------------*/
 //转向pid调控：输出和速度pid输出同数量级
@@ -72,10 +104,20 @@ void Angle_PID_Control()
 	}
 
 	// 计算输出值 (PI控制)
-	Angle_PID.deltaVelocity = Angle_PID.P + Angle_PID.I + Angle_PID.D;
-
+	if(TrackLineMode==1)
+	{
+	  Angle_PID.deltaVelocity = Angle_PID.P + Angle_PID.I + Angle_PID.D;
 	// 输出限幅
-	clip(&Angle_PID.deltaVelocity,Angle_PID.OutputThreshL,Angle_PID.OutputThreshH);
+	  clip(&Angle_PID.deltaVelocity,Angle_PID.OutputThreshL,Angle_PID.OutputThreshH);
+	}
+    else if(TrackLineMode==2) 
+	{
+	   Angle_PID.deltaVelocityRatio = Angle_PID.P + Angle_PID.I + Angle_PID.D;
+	// 输出限幅
+	  clip(&Angle_PID.deltaVelocityRatio,Angle_PID.OutputThreshL,Angle_PID.OutputThreshH);
+	}
+	 
+
 
 	// 更新上一误差
 	Angle_PID.Error1 = Angle_PID.Error0;
@@ -91,10 +133,43 @@ void Angle_PID_SetCurX(uint16_t CurX)
 	Angle_PID.CurX=CurX;
 }
 
+
+void Angle_PID_Update()
+{
+	float new_BL_Vel = 0;
+    float new_BR_Vel = 0;
+	float new_BL_Velocity_Ratio=0;
+	float new_BR_Velocity_Ratio=0;
+	if(TrackLineMode==1)
+	{
+		Angle_PID_Control();
+		new_BL_Vel = V_Base - Angle_PID.deltaVelocity*DriveMode;
+		new_BR_Vel = V_Base + Angle_PID.deltaVelocity*DriveMode;
+		Set_TargetVelocity(new_BL_Vel, new_BR_Vel);
+	}
+	else if(TrackLineMode==2)
+	{
+        Angle_PID_Control();
+		if(DriveMode==1)//前驱
+		{
+		   new_BL_Velocity_Ratio = V_Ratio_Base_Straight*K_Offset_FF - Angle_PID.deltaVelocityRatio;
+		   new_BR_Velocity_Ratio = V_Ratio_Base_Straight + Angle_PID.deltaVelocityRatio;
+		}
+		else if(DriveMode==-1)//后驱
+		{
+           new_BL_Velocity_Ratio = V_Ratio_Base_Straight*0.85 + Angle_PID.deltaVelocityRatio;
+		   new_BR_Velocity_Ratio = V_Ratio_Base_Straight - Angle_PID.deltaVelocityRatio;
+		}
+		SetVelocity(new_BL_Velocity_Ratio, new_BR_Velocity_Ratio);
+	}
+}
+
+
+/*
 void Angle_PID_Update()
 {
 	Angle_PID_Control();
-    float new_BL_Vel = V_Base - Angle_PID.deltaVelocity;
-	float new_RL_Vel = V_Base + Angle_PID.deltaVelocity;
+    float new_BL_ratio = V_Base - Angle_PID.deltaVelocity;
+	float new_BR_ratio = V_Base + Angle_PID.deltaVelocity;
 	Set_TargetVelocity(new_BL_Vel, new_RL_Vel);
-}
+}*/

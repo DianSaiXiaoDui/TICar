@@ -17,6 +17,10 @@ float targetRads[2] = {0.75 * M_PI, 0.5 * M_PI}; // 初始化目标角度（弧�
 //     return val;
 // }
 
+void PTZ_Init(void)
+{
+   SetDegree(90,90);
+}
 
 void calculateTargetRads(float x, float y)
 {

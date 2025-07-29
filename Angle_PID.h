@@ -13,22 +13,23 @@
 
 //转向pid结构体定义
 typedef struct{
-	    float Kp;               // 比例系数
-	    float Ki;               // 积分系数
-	    float Kd;               // 微分系数
-	    float P;                // 比例项
-	    float I;                // 积分项
-	    float D;                // 微分项
-	    float IThresh;          // 积分限幅
-	    float Error0;           // 当前横向误差
-	    float Error1;           // 上一横向误差
-	    float ErrorThresh;      // 抗积分饱和临界误差
-	    float ErrorInt;         // 累计横向误差
+	    double Kp;               // 比例系数
+	    double Ki;               // 积分系数
+	    double Kd;               // 微分系数
+	    double P;                // 比例项
+	    double I;                // 积分项
+	    double D;                // 微分项
+	    double IThresh;          // 积分限幅
+	    double Error0;           // 当前横向误差
+	    double Error1;           // 上一横向误差
+	    double ErrorThresh;      // 抗积分饱和临界误差
+	    double ErrorInt;         // 累计横向误差
 	    uint16_t CurX;      // 当前横向坐标
 	    uint16_t TargetX;   // 目标横向坐标
-	    float deltaVelocity;    // pid输出量:两轮的差速
-	    float OutputThreshH;    // pid输出限幅（上界）
-	    float OutputThreshL;    // pid输出限幅（下界）
+	    double deltaVelocity;    // pid输出量:两轮的差速【巡线模式1】
+		double deltaVelocityRatio; //pid输出量：两轮的差速（速度比例）【巡线模式2】
+	    double OutputThreshH;    // pid输出限幅（上界）
+	    double OutputThreshL;    // pid输出限幅（下界）
 	    uint8_t Reset;        	//切换目标标志
 }Angle_PID_Struct;
 
@@ -40,7 +41,7 @@ void Angle_PID_Control(void);//转向环pid控制
 
 void Angle_PID_Reset(void);
 
-void Angle_PID_Update(void);
+void Angle_PID_Update(void);//角度pid更新
 
 void Angle_PID_SetCurX(uint16_t CurX);
 

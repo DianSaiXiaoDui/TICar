@@ -10,7 +10,8 @@ extern int16_t DxMin;
 extern int16_t dX[128];
 extern uint16_t MaxIdx;
 extern uint16_t MinIdx;
-extern uint16_t CCD_TargetIdx;
+extern int16_t CCD_TargetIdx;
+
 
 //CCD原始像素序列中值滤波
 void CCD_MedianFilter()
@@ -70,7 +71,11 @@ void CCD_DataProcess(void)
         }
     }
 
-   if (MinIdx-MaxIdx>5)
+   if (MinIdx-MaxIdx>10)
      CCD_TargetIdx = (MaxIdx+MinIdx)>>1;
+   else
+      CCD_TargetIdx=-1;//没看到黑线
+
+
 
 }

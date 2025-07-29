@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 extern float targetRads[]; // 目标弧度值
+void PTZ_Init(void);
 void calculateTargetRads(float x, float y);
 float RadToDegree(float rad);
 uint16_t DegreeToCCRX(float Degree);

@@ -51,6 +51,7 @@ extern volatile double V_Ratio_Base_Straight;//基准直行速度比例
 extern volatile double V_Ratio_Base_Turn;//基准转弯速度比例
 extern volatile double K_Offset_FF;//左轮相对右轮的速度补偿系数(前驱前进)
 extern volatile double K_Offset_FB;//左轮相对右轮的速度补偿系数(前驱后退)
+extern volatile uint8_t  T_Angle;
 
 extern volatile uint8_t CCD_UpdateFlag;
 extern volatile int16_t CCD_TargetIdx;
@@ -307,4 +308,99 @@ uint32_t Delay_ms(uint32_t n)
     uint32_t cycles=CPUCLK_FREQ*(n/1000.0);
     delay_cycles(cycles);
     return cycles;
+}
+
+/*巡线模式1：速度pid+差速pid*/ 
+/*巡线模式2：直接差速pid*/ 
+//基础部分（1）正方形巡线
+//巡线模式2，前驱直走1m（直接差速pid）, 看不到黑线开环走一段
+/*
+待调参数：
+（1）直接差速pid参数 Kp=0.0015     
+（2）最大丢线计数      5               
+（3）直接差速pid周期  10            
+*/
+
+void FrontMoveAlongLine()
+{
+	uint16_t Loss_Line_Cnt=0;//丢线计数器
+	uint16_t Loss_Line_Max=5;//最大丢线计数
+	uint8_t Loss_Line_Flag=0;//丢线标志
+	TrackLineMode=2;//巡线模式2
+	T_Angle=10; //直接差速pid周期10ms
+	//启动电机
+   	if(MoveFlag==0)
+	{
+		DC_Start(0);
+	}
+	TargetDistance=100;
+	EnableDistanceFlag=1;
+	//最多直行1m
+	while(!StraightStopFlag)
+	{
+		//不断读取CCD数据，检测黑线中心
+		CCD_Read();
+		CCD_DataProcess();
+
+		//CCD连续几次看不到黑线时开环直行一段距离
+        if(CCD_TargetIdx==-1 && TotalDistance>50)
+		{
+			Loss_Line_Cnt++;
+			if(Loss_Line_Cnt>=Loss_Line_Max)
+			{
+				 Loss_Line_Flag=1;//丢线
+			}
+		}
+		else
+		{
+			Loss_Line_Cnt=0;
+		}
+
+		//更新测速
+		if(Velocity_UpdateFlag==1)
+		{
+			UpdateVelocity();
+			Velocity_UpdateFlag=0;
+		}
+
+		//巡线模式1：速度pid更新
+		if(MoveFlag==1 && Velocity_PID_UpdateFlag==1 && TrackLineMode==1)
+		{
+			Velocity_PID_UpdateFlag=0;
+			Velocity_PID_Update();//速度PID控制
+		}
+        
+		//巡线模式1，角度pid更新
+		if(CCD_UpdateFlag==1 && TrackLineMode==1) 
+		{
+			if(CCD_TargetIdx!=-1)
+			{ 
+				Angle_PID_SetCurX(CCD_TargetIdx);
+				Angle_PID_Update();
+			}
+			else{
+				Set_TargetVelocity(V_Base,V_Base);//更新pid目标速度
+			}
+			CCD_UpdateFlag=0;
+		}
+        
+		 //巡线模式2，角度pid更新
+		if(CCD_UpdateFlag==1 && TrackLineMode==2 && !Loss_Line_Flag)
+		{
+			CCD_Read();
+			CCD_DataProcess();
+			if(CCD_TargetIdx!=-1)
+			{ 
+				Angle_PID_SetCurX(CCD_TargetIdx);
+				Angle_PID_Update();
+			}
+			CCD_UpdateFlag=0;
+		}
+
+	}
+	TotalDistance=0;
+	EnableDistanceFlag=0;
+    StraightStopFlag=0;
+	DC_Stop();
+
 }

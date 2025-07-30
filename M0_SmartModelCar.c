@@ -223,7 +223,8 @@ int main(void) {
         case 0x11:
             //MoveForward(100);
             //DC_Start(0);
-            MoveAlongSquare(1,10);
+            FrontMoveAlongLine();
+            //MoveAlongSquare(1,10);
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;    
         // 车后退    

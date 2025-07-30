@@ -1,5 +1,6 @@
 
 #include "Drive.h"
+#include <math.h>
 #include "PTZcontrol.h"
 #include "CCR_PID.h"
 #include "ti_msp_dl_config.h"
@@ -148,7 +149,7 @@ void openLoopTurning(int8_t clockwise,uint16_t angle)
 		if(angle == 90)
 		{
             DC_Start(1);
-			TurnPeriod=1000000;
+			TurnPeriod=970000;
 		}
 		if(angle == 180)
 		{
@@ -161,7 +162,7 @@ void openLoopTurning(int8_t clockwise,uint16_t angle)
 		if(angle == 90)
 		{
 			DC_Start(-1);
-			TurnPeriod=1000000;
+			TurnPeriod=970000;
 		}
 		if(angle == 180)
 		{
@@ -192,13 +193,17 @@ void closeLoopTurning(int8_t clockwise,uint16_t angle)
 {
     uint32_t TurnCnt=0;
     uint32_t TurnPeriod=0;
+	uint8_t Detect_Line_Cnt=0;
+	uint8_t Detect_Line_Max=3;
+	uint8_t Detect_Line_Flag=0;
 	TrackLineMode=1;//暂时切为模式1，启用速度pid转向
 	if(clockwise > 0)//右转
 	{
 		if(angle == 90)
 		{
             DC_Start(1);
-			TurnPeriod=950000;
+			//TurnPeriod=950000;
+            TurnPeriod=1200000;
 		}
 		if(angle == 180)
 		{
@@ -211,7 +216,7 @@ void closeLoopTurning(int8_t clockwise,uint16_t angle)
 		if(angle == 90)
 		{
 			DC_Start(-1);
-			TurnPeriod=950000;
+			TurnPeriod=1200000;
 		}
 		if(angle == 180)
 		{
@@ -221,10 +226,28 @@ void closeLoopTurning(int8_t clockwise,uint16_t angle)
 	}
 	while(TurnCnt++<=TurnPeriod)
 	{ 
+		//不断读取CCD数据，检测黑线中心
+		CCD_Read();
+		CCD_DataProcess();
+
+		//检测到黑线时停止转弯
+        if(abs(CCD_TargetIdx-63)<=3)
+		{
+			Detect_Line_Cnt++;
+			if(Detect_Line_Cnt>=Detect_Line_Max)
+			{
+				Detect_Line_Flag=1;//检测到黑线
+				DC_Stop();
+			}
+		}
+		else
+		{
+			Detect_Line_Cnt=0;
+		}
        if( Velocity_UpdateFlag==1)//更新测速
        {
-        UpdateVelocity();
-        Velocity_UpdateFlag=0;
+         UpdateVelocity();
+         Velocity_UpdateFlag=0;
        }
 		 //速度pid更新
 	    if(MoveFlag==1 && Velocity_PID_UpdateFlag==1)
@@ -313,7 +336,7 @@ uint32_t Delay_ms(uint32_t n)
 /*巡线模式1：速度pid+差速pid*/ 
 /*巡线模式2：直接差速pid*/ 
 //基础部分（1）正方形巡线
-//巡线模式2，前驱直走1m（直接差速pid）, 看不到黑线开环走一段
+//巡线模式2，前驱直走1m（直接差速pid）,策略:看不到黑线开环走一段
 /*
 待调参数：
 （1）直接差速pid参数 Kp=0.0015     
@@ -326,24 +349,39 @@ void FrontMoveAlongLine()
 	uint16_t Loss_Line_Cnt=0;//丢线计数器
 	uint16_t Loss_Line_Max=5;//最大丢线计数
 	uint8_t Loss_Line_Flag=0;//丢线标志
+	DriveMode=1;//前驱
 	TrackLineMode=2;//巡线模式2
 	T_Angle=10; //直接差速pid周期10ms
 	//启动电机
-   	if(MoveFlag==0)
+   /*if(MoveFlag==0)
+	{
+		DC_Start(0);
+	}*/
+	V_Base=30;
+	V_Ratio_Base_Straight=0.3;
+	TargetDistance=98;
+	EnableDistanceFlag=1;
+	if(MoveFlag==0)
 	{
 		DC_Start(0);
 	}
-	TargetDistance=100;
-	EnableDistanceFlag=1;
 	//最多直行1m
 	while(!StraightStopFlag)
 	{
+		if(TotalDistance>=100)//确保车停下
+		{
+			TotalDistance=0;
+	       EnableDistanceFlag=0;
+           StraightStopFlag=0;
+	        DC_Stop();	
+		   break;
+		}
 		//不断读取CCD数据，检测黑线中心
 		CCD_Read();
 		CCD_DataProcess();
 
 		//CCD连续几次看不到黑线时开环直行一段距离
-        if(CCD_TargetIdx==-1 && TotalDistance>50)
+        if(CCD_TargetIdx==-1 && TotalDistance>50 && TrackLineMode==2)
 		{
 			Loss_Line_Cnt++;
 			if(Loss_Line_Cnt>=Loss_Line_Max)
@@ -363,27 +401,7 @@ void FrontMoveAlongLine()
 			Velocity_UpdateFlag=0;
 		}
 
-		//巡线模式1：速度pid更新
-		if(MoveFlag==1 && Velocity_PID_UpdateFlag==1 && TrackLineMode==1)
-		{
-			Velocity_PID_UpdateFlag=0;
-			Velocity_PID_Update();//速度PID控制
-		}
-        
-		//巡线模式1，角度pid更新
-		if(CCD_UpdateFlag==1 && TrackLineMode==1) 
-		{
-			if(CCD_TargetIdx!=-1)
-			{ 
-				Angle_PID_SetCurX(CCD_TargetIdx);
-				Angle_PID_Update();
-			}
-			else{
-				Set_TargetVelocity(V_Base,V_Base);//更新pid目标速度
-			}
-			CCD_UpdateFlag=0;
-		}
-        
+    
 		 //巡线模式2，角度pid更新
 		if(CCD_UpdateFlag==1 && TrackLineMode==2 && !Loss_Line_Flag)
 		{
@@ -403,4 +421,177 @@ void FrontMoveAlongLine()
     StraightStopFlag=0;
 	DC_Stop();
 
+}
+
+//巡线模式1，后驱直走1m（速度pid+差速pid）
+/*
+待调参数：
+（1）直接差速pid参数 Kp=0.0015     
+（2）最大丢线计数      5               
+（3）直接差速pid周期  10            
+*/
+void BackMoveAlongLineMode1()
+{
+	uint16_t Loss_Line_Cnt=0;//丢线计数器
+	uint16_t Loss_Line_Max=5;//最大丢线计数
+	uint8_t Loss_Line_Flag=0;//丢线标志
+	DriveMode=-1;//后驱
+	TrackLineMode=1;//巡线模式1
+	T_Angle=60; //直接差速pid周期60ms
+	//启动电机
+   	if(MoveFlag==0)
+	{
+		DC_Start(0);
+	}
+    V_Base=20;
+	V_Ratio_Base_Straight=0.2;
+	TargetDistance=98;
+	EnableDistanceFlag=1;
+
+	//最多直行1m
+	while(!StraightStopFlag)
+	{
+		if(TotalDistance>=100)//确保车停下
+		{
+		   TotalDistance=0;
+	       EnableDistanceFlag=0;
+           StraightStopFlag=0;
+	       DC_Stop();	
+		   break;
+		}
+		//不断读取CCD数据，检测黑线中心
+		CCD_Read();
+		CCD_DataProcess();
+
+		//更新测速
+		if(Velocity_UpdateFlag==1)
+		{
+			UpdateVelocity();
+			Velocity_UpdateFlag=0;
+		}
+
+		//巡线模式1：速度pid更新
+		if(MoveFlag==1 && Velocity_PID_UpdateFlag==1 && TrackLineMode==1)
+		{
+			Velocity_PID_UpdateFlag=0;
+			Velocity_PID_Update();//速度PID控制
+		}
+        
+		//巡线模式1，角度pid更新	
+		if(CCD_UpdateFlag==1 && TrackLineMode==1) 
+		{
+			if(CCD_TargetIdx!=-1)
+			{ 
+				Angle_PID_SetCurX(CCD_TargetIdx);
+				Angle_PID_Update();
+			}
+			else{
+				Set_TargetVelocity(V_Base,V_Base);//更新pid目标速度
+			}
+			CCD_UpdateFlag=0;
+		}
+	}
+	TotalDistance=0;
+	EnableDistanceFlag=0;
+    StraightStopFlag=0;
+	DC_Stop();
+
+}
+
+/*
+倒走1m,巡线模式2
+待调参数：
+（1）直接差速pid参数 Kp=0.0015     
+（2）最大丢线计数      5               
+（3）直接差速pid周期  10            
+*/
+void BackMoveAlongLine()
+{
+	uint16_t Loss_Line_Cnt=0;//丢线计数器
+	uint16_t Loss_Line_Max=5;//最大丢线计数
+	uint8_t Loss_Line_Flag=0;//丢线标志
+	DriveMode=-1;//后驱
+	TrackLineMode=2;//巡线模式2
+	T_Angle=10; //直接差速pid周期10ms
+	//启动电机
+   /*if(MoveFlag==0)
+	{
+		DC_Start(0);
+	}*/
+	V_Base=30;
+	V_Ratio_Base_Straight=0.3;
+	TargetDistance=98;
+	EnableDistanceFlag=1;
+	if(MoveFlag==0)
+	{
+		DC_Start(0);
+	}
+	//最多直行1m
+	while(!StraightStopFlag)
+	{
+		if(TotalDistance>=100)//确保车停下
+		{
+		   TotalDistance=0;
+	       EnableDistanceFlag=0;
+           StraightStopFlag=0;
+	       DC_Stop();	
+		   break;
+		}
+		//不断读取CCD数据，检测黑线中心
+		CCD_Read();
+		CCD_DataProcess();
+
+        /*if(CCD_TargetIdx==-1 && TotalDistance>50 && TrackLineMode==2)
+		{
+			Loss_Line_Cnt++;
+			if(Loss_Line_Cnt>=Loss_Line_Max)
+			{
+				 Loss_Line_Flag=1;//丢线
+			}
+		}
+		else
+		{
+			Loss_Line_Cnt=0;
+		}*/
+
+		//更新测速
+		if(Velocity_UpdateFlag==1)
+		{
+			UpdateVelocity();
+			Velocity_UpdateFlag=0;
+		}
+
+    
+		 //巡线模式2，角度pid更新
+		if(CCD_UpdateFlag==1 && TrackLineMode==2 )
+		{
+			CCD_Read();
+			CCD_DataProcess();
+			if(CCD_TargetIdx!=-1)
+			{ 
+				Angle_PID_SetCurX(CCD_TargetIdx);
+				Angle_PID_Update();
+			}
+			CCD_UpdateFlag=0;
+		}
+
+	}
+	TotalDistance=0;
+	EnableDistanceFlag=0;
+    StraightStopFlag=0;
+	DC_Stop();
+
+}
+
+void MoveAlongSquareTask1(uint8_t period)
+{
+  uint8_t cnt=0;
+  while(cnt++<4*period)
+ {
+   FrontMoveAlongLine();//直行1m
+   Delay_ms(200);//延时0.2s
+   openLoopTurning(1,90);//右转90度
+   Delay_ms(200);//延时0.2s
+ }
+  DC_Stop();
 }

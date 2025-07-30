@@ -8,9 +8,9 @@ CCR_PID_Struct CCRY_PID;
 
 void CCRX_PID_Init()
 {
-	CCRX_PID.Kp                     = 0.4;               // 比例系数
+	CCRX_PID.Kp                     = 0.14;               // 比例系数
 	CCRX_PID.Ki                     = 0;                 // 积分系数
-	CCRX_PID.Kd                     = 0;                 // 微分系数
+	CCRX_PID.Kd                     = 0.02;                 // 微分系数
 	CCRX_PID.P                      = 0;                 // 比例项
 	CCRX_PID.I                      = 0;                 // 积分项
 	CCRX_PID.D                      = 0;                 // 微分项
@@ -29,9 +29,9 @@ void CCRX_PID_Init()
 
 void CCRY_PID_Init()
 {
-    CCRY_PID.Kp                     = 0.3;               // 比例系数
+    CCRY_PID.Kp                     = 0.19;               // 比例系数
     CCRY_PID.Ki                     = 0;                 // 积分系数
-    CCRY_PID.Kd                     = 0;                 // 微分系数
+    CCRY_PID.Kd                     = 0.01;                 // 微分系数
     CCRY_PID.P                      = 0;                 // 比例项
     CCRY_PID.I                      = 0;                 // 积分项
     CCRY_PID.D                      = 0;                 // 微分项

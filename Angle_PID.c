@@ -24,7 +24,7 @@ void Angle_PID_Init(void)
   if(TrackLineMode==1)
   {
    //巡线小车
-   Angle_PID.Kp=0.02;
+   Angle_PID.Kp=0.1;
    Angle_PID.Ki=0.0;
    Angle_PID.Kd=0.0;
    Angle_PID.P = 0;
@@ -44,8 +44,7 @@ void Angle_PID_Init(void)
   }
   else if(TrackLineMode==2)
   {
-	Angle_PID.Kp=0.0015;
-	Angle_PID.Ki=0.0;
+	Angle_PID.Ki=0.0015;
 	Angle_PID.Kd=0.0;
 	Angle_PID.P = 0;
 	Angle_PID.I = 0;
@@ -70,6 +69,17 @@ void Angle_PID_Init(void)
 //转向pid调控：输出和速度pid输出同数量级
 void Angle_PID_Control()
 {
+	if(TrackLineMode==1)
+	{
+	    Angle_PID.Kp=0.06;
+		Angle_PID.Kd=0.0;
+		Angle_PID.OutputThreshH=5;
+	}
+	else if(TrackLineMode==2)
+	{
+	    Angle_PID.Kp=0.0015;
+		Angle_PID.OutputThreshH=0.06;
+	}
 	Angle_PID.Error0 = Angle_PID.TargetX - Angle_PID.CurX;//更新当前横向坐标误差
 
 	//计算比例项
@@ -157,7 +167,7 @@ void Angle_PID_Update()
 		}
 		else if(DriveMode==-1)//后驱
 		{
-           new_BL_Velocity_Ratio = V_Ratio_Base_Straight*0.85 + Angle_PID.deltaVelocityRatio;
+           new_BL_Velocity_Ratio = V_Ratio_Base_Straight + Angle_PID.deltaVelocityRatio;
 		   new_BR_Velocity_Ratio = V_Ratio_Base_Straight - Angle_PID.deltaVelocityRatio;
 		}
 		SetVelocity(new_BL_Velocity_Ratio, new_BR_Velocity_Ratio);

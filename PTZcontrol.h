@@ -25,4 +25,7 @@ void SetRadius(float _r);
 
 void SetFollowerX(float x);
 void SetFollowerDis(float dis);
+void StaticShooting();
+
+
 #endif //__PTZCONTROL_H__

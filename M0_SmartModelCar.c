@@ -91,8 +91,8 @@ volatile int8_t Dir_L;
 volatile int8_t Dir_R;
 volatile double TotalDistance;//总移动距离
 volatile double TargetDistance;//目标移动距离
-volatile double V_Base=20;//基准速度
-volatile double V_Ratio_Base_Straight=0.2;//基准直行速度比例
+volatile double V_Base=0.3;//基准速度
+volatile double V_Ratio_Base_Straight=0.3;//基准直行速度比例
 volatile double V_Ratio_Base_Turn=0.2;//基准转弯速度比例
 volatile double K_Offset_FF=1;//左轮相对右轮的速度补偿系数(前驱前进)
 volatile double K_Offset_FB=1;//左轮相对右轮的速度补偿系数(前驱后退)
@@ -174,7 +174,7 @@ int main(void) {
  
 
 
-  // for (int i = 250; i <= 1250; i += 25)
+  // for (int i = 250; i <= 1250; i += 50)
   // {
   //   DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, i,GPIO_PWM_PTZ_C1_IDX);
   //   float per = 1.0 * i / 1250;
@@ -200,13 +200,14 @@ int main(void) {
   FollowPoint(0, 0);
   DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, 750,GPIO_PWM_PTZ_C1_IDX);
   delay_cycles(32000000);
+  
+  // StaticShooting();
   while (1) {
-    
-    if(K230_receive_completed)
+    /*if(K230_receive_completed)
     {
       ParseAndExecuteCommand((char*)K230_Uart2_RxBuffer);
       K230_receive_completed = 0;
-    }
+    }*/
 
     // FollowPoint(0, 0);
     // DrawCircle();
@@ -227,9 +228,11 @@ int main(void) {
             //MoveAlongSquare(1,10);
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;    
-        // 车后退    
+        // 车后退     b  
         case 0x12:
-             NewMoveAlongSquare(1,10);
+           //MoveAlongSquareTask1(1);
+            BackMoveAlongLine() ;
+            // NewMoveAlongSquare(1,10);
             //DC_Start(10);           
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;
@@ -247,12 +250,12 @@ int main(void) {
             break;
         // 车左转90度
         case 0x17:
-            openLoopTurning(-1,90);
+            openLoopTurning(-1,90);     
             //DC_Start(-1);
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;
         // 车右转90度
-        case 0x18:
+        case 0x18:       
             openLoopTurning(1,90);
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;
@@ -261,31 +264,59 @@ int main(void) {
             openLoopTurning(1, 180);
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;            
+        //巡线一圈
+        case 0x21:
+            MoveAlongSquareTask1(1);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+            break;
+         //巡线两圈
+        case 0x22:
+            MoveAlongSquareTask1(2);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+            break;   
+         //巡线三圈        
+         case 0x23:
+            MoveAlongSquareTask1(3);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+            break;       
+         //巡线四圈        
+         case 0x24:
+            MoveAlongSquareTask1(4);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+            break;      
+          //巡线五圈        
+         case 0x25:
+            MoveAlongSquareTask1(5);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+            break;       
+         case 0x27:
+            StaticShooting();
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;                         
         default:
             break;
         }
         Touch_pannel_receive_completed = 0;
     }
    
-  if( Velocity_UpdateFlag==1)//更新测速
-  {
-      UpdateVelocity();
-      Velocity_UpdateFlag=0;
-  }
-  if(CCD_UpdateFlag==1 && TrackLineMode==1) //巡线模式1，角度pid更新
-  {
-      CCD_Read();
-      CCD_DataProcess();
-      if(CCD_TargetIdx!=-1)
-      { 
-        Angle_PID_SetCurX(CCD_TargetIdx);
-        Angle_PID_Update();
-       }
-       else{
-        Set_TargetVelocity(V_Base,V_Base);
-       }
-      CCD_UpdateFlag=0;
-    }
+  // if( Velocity_UpdateFlag==1)//更新测速
+  // {
+  //     UpdateVelocity();
+  //     Velocity_UpdateFlag=0;
+  // }
+  // if(CCD_UpdateFlag==1 && TrackLineMode==1) //巡线模式1，角度pid更新
+  // {
+  //     CCD_Read();
+  //     CCD_DataProcess();
+  //     if(CCD_TargetIdx!=-1)
+  //     { 
+  //       Angle_PID_SetCurX(CCD_TargetIdx);
+  //       Angle_PID_Update();
+  //      }
+  //      else{
+  //       Set_TargetVelocity(V_Base,V_Base);
+  //      }
+  //     CCD_UpdateFlag=0;
+  //   }
 
     if(CCR_PIDflag)
     {
@@ -294,35 +325,36 @@ int main(void) {
       currentCCRX =  DL_Timer_getCaptureCompareValue(PWM_PTZ_INST,GPIO_PWM_PTZ_C1_IDX);
       currentCCRY =  DL_Timer_getCaptureCompareValue(PWM_PTZ_INST,GPIO_PWM_PTZ_C0_IDX);
       currentCCRX += CCRX_PID.DeltaCCR;
-      currentCCRY -= CCRY_PID.DeltaCCR;
-  	currentCCRX = (currentCCRX < maxCCRX)? currentCCRX : maxCCRX;
-  	currentCCRX = (currentCCRX > minCCRX)? currentCCRX : minCCRX;
-  	currentCCRY = (currentCCRY < maxCCRY)? currentCCRY : maxCCRY;
-  	currentCCRY = (currentCCRY > minCCRY)? currentCCRY : minCCRY;
+      currentCCRY += CCRY_PID.DeltaCCR;
+      currentCCRX = (currentCCRX < maxCCRX)? currentCCRX : maxCCRX;
+      currentCCRX = (currentCCRX > minCCRX)? currentCCRX : minCCRX;
+      currentCCRY = (currentCCRY < maxCCRY)? currentCCRY : maxCCRY;
+      currentCCRY = (currentCCRY > minCCRY)? currentCCRY : minCCRY;
       DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, currentCCRX, GPIO_PWM_PTZ_C1_IDX);
       DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, currentCCRY, GPIO_PWM_PTZ_C0_IDX); 
       CCR_PIDflag = 0;
     }
 
-	if(CCD_UpdateFlag==1 && TrackLineMode==2) //巡线模式2，角度pid更新
-  {
-      CCD_Read();
-      CCD_DataProcess();
-      if(CCD_TargetIdx!=-1)
-      { 
-        Angle_PID_SetCurX(CCD_TargetIdx);
-        Angle_PID_Update();
-       }
-      CCD_UpdateFlag=0;
-  }
+	// if(CCD_UpdateFlag==1 && TrackLineMode==2) //巡线模式2，角度pid更新
+  // {
+  //     CCD_Read();
+  //     CCD_DataProcess();
+  //     if(CCD_TargetIdx!=-1)
+  //     { 
+  //       Angle_PID_SetCurX(CCD_TargetIdx);
+  //       Angle_PID_Update();
+  //      }
+  //     CCD_UpdateFlag=0;
+  // }
 
-	//速度pid更新（巡线模式1）
-	if(MoveFlag==1 && Velocity_PID_UpdateFlag==1 && TrackLineMode==1)
-	{
-	   Velocity_PID_UpdateFlag=0;
-	   Velocity_PID_Update();//速度PID控制
+	// //速度pid更新（巡线模式1）
+	// if(MoveFlag==1 && Velocity_PID_UpdateFlag==1 && TrackLineMode==1)
+	// {
+	//    Velocity_PID_UpdateFlag=0;
+	//    Velocity_PID_Update();//速度PID控制
+	// }
 	}
-	}
+  
 
 }
 
@@ -485,10 +517,29 @@ void UART_K230_INST_IRQHandler(void)
         default: 
             break;
     }
+
+  //检测到靶子,启动pid巡线
+  if (K230_receive_completed)
+  {  
+    if (strncmp(K230_Uart2_RxBuffer,"detect",6) == 0)
+    {
+      if (sscanf(K230_Uart2_RxBuffer + 6, " targetX: %f currentX: %f targetY: %f currentY: %f", &targetX,&currentX,&targetY,&currentY) == 4)
+      {
+        CCRX_PID.Target = targetX;
+        CCRX_PID.Current= currentX;
+        CCRY_PID.Target = targetY;
+        CCRY_PID.Current= currentY;
+        CCR_PIDflag = 1;
+      }
+    }
+
+    K230_receive_completed = 0;
+  }
 }
 
 
 /*解析并执行串口命令*/
+/*
 void ParseAndExecuteCommand(const char* buffer) {
 	if (strncmp(buffer,"detect",6) == 0)
 	{
@@ -503,3 +554,4 @@ void ParseAndExecuteCommand(const char* buffer) {
 	}
 
 }
+*/

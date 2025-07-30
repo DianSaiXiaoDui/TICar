@@ -1,4 +1,5 @@
 #include "PTZcontrol.h"
+#include "CCR_PID.h"
 #include <stdio.h>
 #include <math.h>
 #include <stdint.h>
@@ -10,7 +11,7 @@ const float middleRadY = 0.5 * M_PI;
 float dis = 100.0; // cm
 float targetRads[2] = {0.75 * M_PI, 0.5 * M_PI}; // 初始化目标角度（弧度）
 float px, py;
-
+extern int32_t CCR_PIDflag;
 void PTZ_Init(void)
 {
    SetDegree(90,90);
@@ -99,4 +100,29 @@ void DrawCircle()
         FollowPoint(px, py);
         delay_cycles(80000);
     }
+}
+
+void StaticShooting()
+{
+    //云台旋转找靶
+    uint8_t Step = 50; //转动CCR步长 
+    float TimeInterval = 0.5;//单位:s
+    for (int i = 250; i <= 1250; i += Step)
+    {
+        
+    //接收并解析k230串口命令,停止云台转动,并进行pid调控
+        if(CCR_PIDflag) return; // 收到命令, 退出静止找点
+        DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, i,GPIO_PWM_PTZ_C1_IDX);
+        float per = 1.0 * i / 1250;
+        // int count = 0;
+        // while (count < TimeInterval*32000000)
+        // {
+        //     count++;
+        //     if (CCR_PIDflag)
+        //         return;
+        // }
+        // printf("percentage: %d \n", i);
+        delay_cycles(TimeInterval*32000000);
+    }
+
 }

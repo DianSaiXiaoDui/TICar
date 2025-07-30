@@ -13,4 +13,9 @@ void openLoopTurning(int8_t clockwise,uint16_t angle);
 void NewMoveAlongSquare(uint8_t start_idx,uint16_t period);//沿正方形轨道运动
 void MoveAlongSquare(uint8_t start_idx,uint16_t period);//沿正方形轨道运动
 uint32_t Delay_ms(uint32_t n);
+void MoveAlongSquareTask1(uint8_t period);
+void FrontMoveAlongLine();
+void BackMoveAlongLineMode1();//巡线模式1
+void BackMoveAlongLine();//巡线模式2
+
 #endif

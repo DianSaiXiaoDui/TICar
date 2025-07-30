@@ -1,12 +1,35 @@
 
 #include "Drive.h"
-
+#include "PTZcontrol.h"
+#include "CCR_PID.h"
+#include "ti_msp_dl_config.h"
+#include "ti/driverlib/dl_timer.h"
 extern volatile uint8_t MoveFlag;
 extern volatile uint8_t EnableDistanceFlag;
 extern volatile uint8_t StraightStopFlag;
 extern volatile uint8_t DCStopFlag;
 extern volatile uint8_t TurnFlag;
 extern volatile uint16_t TurnPeriod;
+
+extern int32_t CCR_PIDflag;
+extern float targetX;
+extern float currentX;
+extern float targetY;
+extern float currentY;
+extern int16_t currentCCRX;
+extern int16_t currentCCRY;
+extern int16_t maxCCRX;
+extern int16_t minCCRX;
+extern int16_t maxCCRY;
+extern int16_t minCCRY;
+extern uint8_t K230_receive_completed;
+
+//串口通信
+extern uint8_t K230_Uart2_RxBuffer[128];
+extern uint8_t K230_receive_len;
+extern uint8_t K230_receive_completed;
+extern uint8_t K230_receive;
+
 
 extern volatile double V_L;
 extern volatile double V_R;
@@ -43,6 +66,29 @@ void MoveForward(uint32_t forwardDistance)
 	EnableDistanceFlag=1;
 	while(!StraightStopFlag)
 	{
+		if(K230_receive_completed)
+		{
+		ParseAndExecuteCommand((char*)K230_Uart2_RxBuffer);
+		K230_receive_completed = 0;
+		}
+		if(CCR_PIDflag)
+		{
+			CCRX_PID_Update();
+			CCRY_PID_Update();
+			currentCCRX =  DL_Timer_getCaptureCompareValue(PWM_PTZ_INST,GPIO_PWM_PTZ_C1_IDX);
+			currentCCRY =  DL_Timer_getCaptureCompareValue(PWM_PTZ_INST,GPIO_PWM_PTZ_C0_IDX);
+			currentCCRX += CCRX_PID.DeltaCCR;
+			currentCCRY -= CCRY_PID.DeltaCCR;
+			currentCCRX = (currentCCRX < maxCCRX)? currentCCRX : maxCCRX;
+			currentCCRX = (currentCCRX > minCCRX)? currentCCRX : minCCRX;
+			currentCCRY = (currentCCRY < maxCCRY)? currentCCRY : maxCCRY;
+			currentCCRY = (currentCCRY > minCCRY)? currentCCRY : minCCRY;
+			DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, currentCCRX, GPIO_PWM_PTZ_C1_IDX);
+			DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, currentCCRY, GPIO_PWM_PTZ_C0_IDX); 
+			CCR_PIDflag = 0;
+		}
+
+
 		if( Velocity_UpdateFlag==1)//更新测速
 		{
 			UpdateVelocity();

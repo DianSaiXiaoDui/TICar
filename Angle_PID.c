@@ -44,8 +44,8 @@ void Angle_PID_Init(void)
   }
   else if(TrackLineMode==2)
   {
-	Angle_PID.Ki=0.0015;
-	Angle_PID.Kd=0.0;
+	Angle_PID.Kp=0.0008;
+	Angle_PID.Kd=0.0003;
 	Angle_PID.P = 0;
 	Angle_PID.I = 0;
 	Angle_PID.D = 0;

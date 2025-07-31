@@ -15,6 +15,8 @@
 #include <stdlib.h>
 #include "PTZcontrol.h"
 #include "CCR_PID.h"
+#include "clock.h"
+#include "lsm6dsv16x.h"
 
 
 #define V_MAX 80
@@ -91,8 +93,8 @@ volatile int8_t Dir_L;
 volatile int8_t Dir_R;
 volatile double TotalDistance;//总移动距离
 volatile double TargetDistance;//目标移动距离
-volatile double V_Base=0.3;//基准速度
-volatile double V_Ratio_Base_Straight=0.3;//基准直行速度比例
+volatile double V_Base=22;//基准速度
+volatile double V_Ratio_Base_Straight=0.22;//基准直行速度比例
 volatile double V_Ratio_Base_Turn=0.2;//基准转弯速度比例
 volatile double K_Offset_FF=1;//左轮相对右轮的速度补偿系数(前驱前进)
 volatile double K_Offset_FB=1;//左轮相对右轮的速度补偿系数(前驱后退)
@@ -130,6 +132,11 @@ volatile uint8_t Touch_pannel_receive_completed = 0;
 volatile uint8_t Touch_pannel_receive = 0;
 volatile uint8_t Touch_pannel_data_receive_start = 0;
 
+//姿态传感器数据
+//extern float yaw;//横向角
+//extern float pitch;//俯仰角
+//extern float roll;//横滚角
+
 //驱动模式
 volatile int8_t DriveMode=1;//前驱（-1：后驱）
 void UART_SCREEN_TransmitStrimng(const char* str);
@@ -148,9 +155,13 @@ void ParseAndExecuteCommand(const char* buffer);
 
 int main(void) {
   SYSCFG_DL_init();
+  SysTick_Init();
   DC_Init();
   Velocity_PID_Init();//速度pid初始化
   Angle_PID_Init();
+  LSM6DSV16X_Init();
+    /* Don't remove this! */
+  NVIC_EnableIRQ(1);
   NVIC_EnableIRQ(COMPARE_0_INST_INT_IRQN);
   NVIC_EnableIRQ(COMPARE_1_INST_INT_IRQN);
   NVIC_EnableIRQ(TIMER_0_INST_INT_IRQN);
@@ -228,7 +239,7 @@ int main(void) {
             //MoveAlongSquare(1,10);
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;    
-        // 车后退     b  
+        // 车后退     
         case 0x12:
            //MoveAlongSquareTask1(1);
             BackMoveAlongLine() ;
@@ -250,13 +261,13 @@ int main(void) {
             break;
         // 车左转90度
         case 0x17:
-            openLoopTurning(-1,90);     
+            closeLoopTurning(-1,90);     
             //DC_Start(-1);
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;
         // 车右转90度
         case 0x18:       
-            openLoopTurning(1,90);
+            closeLoopTurning(1,90);
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;
         // 车掉头
@@ -537,6 +548,17 @@ void UART_K230_INST_IRQHandler(void)
   }
 }
 
+void SysTick_Handler(void) { tick_ms++; }
+
+void GROUP1_IRQHandler(void) {
+  switch (DL_Interrupt_getPendingGroup(DL_INTERRUPT_GROUP_1)) {
+  case GPIO_LSM6DSV16X_INT_IIDX  :
+    Read_LSM6DSV16X();
+    if(yaw < 0) yaw += 360;
+    yaw=360-yaw;//角度顺时针变大
+    break;
+  }
+}
 
 /*解析并执行串口命令*/
 /*

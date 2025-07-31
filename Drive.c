@@ -57,6 +57,8 @@ extern volatile uint8_t  T_Angle;
 extern volatile uint8_t CCD_UpdateFlag;
 extern volatile int16_t CCD_TargetIdx;
 
+extern float yaw;
+
 //直走一段距离停下（编码器测距闭环、角度pid巡线）
 void MoveForward(uint32_t forwardDistance)
 {
@@ -149,7 +151,8 @@ void openLoopTurning(int8_t clockwise,uint16_t angle)
 		if(angle == 90)
 		{
             DC_Start(1);
-			TurnPeriod=970000;
+			//830000
+			TurnPeriod=790000;
 		}
 		if(angle == 180)
 		{
@@ -162,7 +165,8 @@ void openLoopTurning(int8_t clockwise,uint16_t angle)
 		if(angle == 90)
 		{
 			DC_Start(-1);
-			TurnPeriod=970000;
+			//830000
+			TurnPeriod=790000;
 		}
 		if(angle == 180)
 		{
@@ -188,7 +192,7 @@ void openLoopTurning(int8_t clockwise,uint16_t angle)
 	DC_Stop();
 }
 
-//闭环转向
+//闭环转向(利用陀螺仪)
 void closeLoopTurning(int8_t clockwise,uint16_t angle)
 {
     uint32_t TurnCnt=0;
@@ -196,54 +200,35 @@ void closeLoopTurning(int8_t clockwise,uint16_t angle)
 	uint8_t Detect_Line_Cnt=0;
 	uint8_t Detect_Line_Max=3;
 	uint8_t Detect_Line_Flag=0;
+	uint8_t TurnStopFlag=0;//停止转向标志
+	uint16_t StartYaw=0;//起始航向角
+	//uint8_t CurYaw=0;//当前航向角
+	uint16_t TargetYaw=0;//目标航向角
 	TrackLineMode=1;//暂时切为模式1，启用速度pid转向
 	if(clockwise > 0)//右转
 	{
-		if(angle == 90)
-		{
-            DC_Start(1);
-			//TurnPeriod=950000;
-            TurnPeriod=1200000;
-		}
-		if(angle == 180)
-		{
-			DC_Start(1);
-			TurnPeriod=1800000;
-		}
+		DC_Start(1);
 	}
 	else
 	{
-		if(angle == 90)
-		{
-			DC_Start(-1);
-			TurnPeriod=1200000;
-		}
-		if(angle == 180)
-		{
-			DC_Start(-1);
-			TurnPeriod=1800000;
-		}
-	}
-	while(TurnCnt++<=TurnPeriod)
-	{ 
-		//不断读取CCD数据，检测黑线中心
-		CCD_Read();
-		CCD_DataProcess();
 
-		//检测到黑线时停止转弯
-        if(abs(CCD_TargetIdx-63)<=3)
-		{
-			Detect_Line_Cnt++;
-			if(Detect_Line_Cnt>=Detect_Line_Max)
-			{
-				Detect_Line_Flag=1;//检测到黑线
-				DC_Stop();
-			}
-		}
-		else
-		{
-			Detect_Line_Cnt=0;
-		}
+		DC_Start(-1);
+	}
+	
+	StartYaw=yaw;//记录起始航向角
+	//顺时针旋转
+	if(clockwise>0)
+	{
+	   TargetYaw=StartYaw>(360-angle)?(StartYaw+angle-360):(StartYaw+angle);//计算目标终止yaw角
+    }	
+	//逆时针旋转
+	else if(clockwise<0)
+	{
+		TargetYaw=StartYaw<angle?(StartYaw-angle+360):(StartYaw-angle);//计算目标终止yaw角
+	}
+	while((TargetYaw-yaw)*clockwise<0) //转弯90度时退出循环,停止转向
+	{   
+
        if( Velocity_UpdateFlag==1)//更新测速
        {
          UpdateVelocity();
@@ -347,19 +332,19 @@ uint32_t Delay_ms(uint32_t n)
 void FrontMoveAlongLine()
 {
 	uint16_t Loss_Line_Cnt=0;//丢线计数器
-	uint16_t Loss_Line_Max=5;//最大丢线计数
+	uint16_t Loss_Line_Max=10;//最大丢线计数
 	uint8_t Loss_Line_Flag=0;//丢线标志
 	DriveMode=1;//前驱
 	TrackLineMode=2;//巡线模式2
-	T_Angle=10; //直接差速pid周期10ms
+	T_Angle=20; //直接差速pid周期20ms
 	//启动电机
    /*if(MoveFlag==0)
 	{
 		DC_Start(0);
 	}*/
-	V_Base=30;
-	V_Ratio_Base_Straight=0.3;
-	TargetDistance=98;
+	V_Base=25;
+	V_Ratio_Base_Straight=0.25;
+	TargetDistance=100;
 	EnableDistanceFlag=1;
 	if(MoveFlag==0)
 	{
@@ -368,7 +353,7 @@ void FrontMoveAlongLine()
 	//最多直行1m
 	while(!StraightStopFlag)
 	{
-		if(TotalDistance>=100)//确保车停下
+		if(TotalDistance>=102)//确保车停下
 		{
 			TotalDistance=0;
 	       EnableDistanceFlag=0;
@@ -589,9 +574,9 @@ void MoveAlongSquareTask1(uint8_t period)
   while(cnt++<4*period)
  {
    FrontMoveAlongLine();//直行1m
-   Delay_ms(200);//延时0.2s
+   Delay_ms(300);//延时0.3s
    openLoopTurning(1,90);//右转90度
-   Delay_ms(200);//延时0.2s
+   Delay_ms(300);//延时0.3s
  }
   DC_Stop();
 }

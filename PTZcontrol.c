@@ -105,8 +105,12 @@ void DrawCircle()
 void StaticShooting()
 {
     //云台旋转找靶
-    uint8_t Step = 50; //转动CCR步长 
-    float TimeInterval = 0.5;//单位:s
+    uint8_t Step = 25; //转动CCR步长 
+    float TimeInterval = 0.2;//单位:s
+    DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, 250, GPIO_PWM_PTZ_C1_IDX);
+    DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, 750, GPIO_PWM_PTZ_C0_IDX);
+    delay_cycles(TimeInterval*32000000);
+    CCR_PIDflag = 0;
     for (int i = 250; i <= 1250; i += Step)
     {
         

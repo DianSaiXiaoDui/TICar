@@ -52,9 +52,9 @@ float currentY;
 int16_t currentCCRX;
 int16_t currentCCRY;
 int16_t maxCCRX = 1250;
-int16_t minCCRX = 800;
-int16_t maxCCRY = 760;
-int16_t minCCRY = 700;
+int16_t minCCRX = 250;
+int16_t maxCCRY = 800;
+int16_t minCCRY = 650;
 
 //CCD
 volatile uint8_t ADC_flag = 0;
@@ -140,6 +140,7 @@ volatile uint8_t Touch_pannel_data_receive_start = 0;
 //驱动模式
 volatile int8_t DriveMode=1;//前驱（-1：后驱）
 void UART_SCREEN_TransmitStrimng(const char* str);
+void UART_K230_TransmitString(const char* str);
 /*uint32_t Delay_ms(uint32_t n)
 {
     uint32_t cycles=CPUCLK_FREQ*(n/1000.0);
@@ -209,7 +210,7 @@ int main(void) {
   SetFollowerDis(startDis);
   SetRadius(5);
   FollowPoint(0, 0);
-  DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, 1100,GPIO_PWM_PTZ_C1_IDX);
+  DL_Timer_setCaptureCompareValue(PWM_PTZ_INST,750,GPIO_PWM_PTZ_C1_IDX);
   delay_cycles(32000000);
   
   // StaticShooting();
@@ -300,9 +301,17 @@ int main(void) {
             MoveAlongSquareTask1(5);
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;       
-         case 0x27:
-            StaticShooting();
-            Touch_pannel_Uart0_RxBuffer[1] = 0x0;                         
+         case 0x32:
+            UART_K230_TransmitString("Counting down: 2 secs");
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0; 
+         case 0x33:
+            UART_K230_TransmitString("Counting down: 4 secs");
+            StaticShooting(1);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+         case 0x34:
+            UART_K230_TransmitString("Counting down: 4 secs");
+            StaticShooting(0);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;                    
         default:
             break;
         }
@@ -494,6 +503,15 @@ void UART_SCREEN_TransmitString(const char* str)
    while(*str!='\0')
    {
       DL_UART_transmitDataBlocking(UART_SCREEN_INST , (uint8_t)*str);
+      str++;
+   }
+}
+
+void UART_K230_TransmitString(const char* str)
+{
+   while(*str!='\0')
+   {
+      DL_UART_transmitDataBlocking(UART_K230_INST , (uint8_t)*str);
       str++;
    }
 }

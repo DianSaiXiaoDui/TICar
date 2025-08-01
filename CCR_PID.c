@@ -8,9 +8,9 @@ CCR_PID_Struct CCRY_PID;
 
 void CCRX_PID_Init()
 {
-	CCRX_PID.Kp                     = 0.1;               // 比例系数
+	CCRX_PID.Kp                     = 0.08;               // 比例系数
 	CCRX_PID.Ki                     = 0;                 // 积分系数
-	CCRX_PID.Kd                     = 0.25;                 // 微分系数
+	CCRX_PID.Kd                     = 0.2;                 // 微分系数
 	CCRX_PID.P                      = 0;                 // 比例项
 	CCRX_PID.I                      = 0;                 // 积分项
 	CCRX_PID.D                      = 0;                 // 微分项
@@ -22,8 +22,8 @@ void CCRX_PID_Init()
 	CCRX_PID.Current                = 0;                 // 当前横/纵坐标
 	CCRX_PID.Target                 = 0;                 // 目标横/纵坐标
 	CCRX_PID.DeltaCCR               = 0;                 // pid输出量：电机CCR改变值
-	CCRX_PID.OutputThreshH          = 100;                // pid输出限幅（上界）
-	CCRX_PID.OutputThreshL          = -100;               // pid输出限幅（下界）
+	CCRX_PID.OutputThreshH          = 50;                // pid输出限幅（上界）
+	CCRX_PID.OutputThreshL          = -50;               // pid输出限幅（下界）
 	CCRX_PID.Reset                  = 1;        	     // 切换目标标志
 }
 

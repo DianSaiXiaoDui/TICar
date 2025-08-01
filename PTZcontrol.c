@@ -102,19 +102,19 @@ void DrawCircle()
     }
 }
 
-void StaticShooting()
+void StaticShooting(uint16_t clockwise)
 {
     //云台旋转找靶
     uint8_t Step = 25; //转动CCR步长 
     float TimeInterval = 0.2;//单位:s
-    DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, 250, GPIO_PWM_PTZ_C1_IDX);
-    DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, 750, GPIO_PWM_PTZ_C0_IDX);
+    DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, 750, GPIO_PWM_PTZ_C1_IDX);//将舵机转到180度处
+    //DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, 750, GPIO_PWM_PTZ_C0_IDX);
     delay_cycles(TimeInterval*32000000);
     CCR_PIDflag = 0;
-    for (int i = 250; i <= 1250; i += Step)
+    if (clockwise)
     {
-        
-    //接收并解析k230串口命令,停止云台转动,并进行pid调控
+        for (int i = 750; i >= 250 ; i -= Step)
+        {
         if(CCR_PIDflag) return; // 收到命令, 退出静止找点
         DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, i,GPIO_PWM_PTZ_C1_IDX);
         float per = 1.0 * i / 1250;
@@ -127,6 +127,29 @@ void StaticShooting()
         // }
         // printf("percentage: %d \n", i);
         delay_cycles(TimeInterval*32000000);
+        }
     }
-
+    else
+    {
+        for (int i = 750; i <= 1250; i += Step)
+        {
+            if(CCR_PIDflag) return; // 收到命令, 退出静止找点
+            DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, i,GPIO_PWM_PTZ_C1_IDX);
+            float per = 1.0 * i / 1250;
+            // int count = 0;
+            // while (count < TimeInterval*32000000)
+            // {
+            //     count++;
+            //     if (CCR_PIDflag)
+            //         return;
+            // }
+            // printf("percentage: %d \n", i);
+            delay_cycles(TimeInterval*32000000);
+        }
+    }
+    
+    // DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, 1500,GPIO_PWM_PTZ_C1_IDX);
+    // delay_cycles(TimeInterval*32000000);
+    // DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, 250,GPIO_PWM_PTZ_C1_IDX);
+    // delay_cycles(TimeInterval*32000000);
 }

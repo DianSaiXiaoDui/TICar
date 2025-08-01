@@ -8,9 +8,9 @@ CCR_PID_Struct CCRY_PID;
 
 void CCRX_PID_Init()
 {
-	CCRX_PID.Kp                     = 0.08;               // 比例系数
+	CCRX_PID.Kp                     = 0.1;               // 比例系数
 	CCRX_PID.Ki                     = 0;                 // 积分系数
-	CCRX_PID.Kd                     = 0.06;                 // 微分系数
+	CCRX_PID.Kd                     = 0.25;                 // 微分系数
 	CCRX_PID.P                      = 0;                 // 比例项
 	CCRX_PID.I                      = 0;                 // 积分项
 	CCRX_PID.D                      = 0;                 // 微分项
@@ -24,14 +24,14 @@ void CCRX_PID_Init()
 	CCRX_PID.DeltaCCR               = 0;                 // pid输出量：电机CCR改变值
 	CCRX_PID.OutputThreshH          = 100;                // pid输出限幅（上界）
 	CCRX_PID.OutputThreshL          = -100;               // pid输出限幅（下界）
-	CCRX_PID.Reset                  = 0;        	     // 切换目标标志
+	CCRX_PID.Reset                  = 1;        	     // 切换目标标志
 }
 
 void CCRY_PID_Init()
 {
-    CCRY_PID.Kp                     = 0.14;               // 比例系数
+    CCRY_PID.Kp                     = 0.1;               // 比例系数
     CCRY_PID.Ki                     = 0;                 // 积分系数
-    CCRY_PID.Kd                     = 0.01;                 // 微分系数
+    CCRY_PID.Kd                     = 0;                 // 微分系数
     CCRY_PID.P                      = 0;                 // 比例项
     CCRY_PID.I                      = 0;                 // 积分项
     CCRY_PID.D                      = 0;                 // 微分项
@@ -45,7 +45,7 @@ void CCRY_PID_Init()
     CCRY_PID.DeltaCCR               = 0;                 // pid输出量：电机CCR改变值
     CCRY_PID.OutputThreshH          = 100;                // pid输出限幅（上界）
     CCRY_PID.OutputThreshL          = -100;               // pid输出限幅（下界）
-    CCRY_PID.Reset                  = 0;                 // 切换目标标志
+    CCRY_PID.Reset                  = 1;                 // 切换目标标志
 }
 
 

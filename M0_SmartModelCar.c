@@ -52,9 +52,9 @@ float currentY;
 int16_t currentCCRX;
 int16_t currentCCRY;
 int16_t maxCCRX = 1250;
-int16_t minCCRX = 250;
-int16_t maxCCRY = 1250;
-int16_t minCCRY = 250;
+int16_t minCCRX = 800;
+int16_t maxCCRY = 760;
+int16_t minCCRY = 700;
 
 //CCD
 volatile uint8_t ADC_flag = 0;
@@ -209,7 +209,7 @@ int main(void) {
   SetFollowerDis(startDis);
   SetRadius(5);
   FollowPoint(0, 0);
-  DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, 750,GPIO_PWM_PTZ_C1_IDX);
+  DL_Timer_setCaptureCompareValue(PWM_PTZ_INST, 1100,GPIO_PWM_PTZ_C1_IDX);
   delay_cycles(32000000);
   
   // StaticShooting();
@@ -336,7 +336,7 @@ int main(void) {
       currentCCRX =  DL_Timer_getCaptureCompareValue(PWM_PTZ_INST,GPIO_PWM_PTZ_C1_IDX);
       currentCCRY =  DL_Timer_getCaptureCompareValue(PWM_PTZ_INST,GPIO_PWM_PTZ_C0_IDX);
       currentCCRX += CCRX_PID.DeltaCCR;
-      currentCCRY += CCRY_PID.DeltaCCR;
+      currentCCRY -= CCRY_PID.DeltaCCR;
       currentCCRX = (currentCCRX < maxCCRX)? currentCCRX : maxCCRX;
       currentCCRX = (currentCCRX > minCCRX)? currentCCRX : minCCRX;
       currentCCRY = (currentCCRY < maxCCRY)? currentCCRY : maxCCRY;

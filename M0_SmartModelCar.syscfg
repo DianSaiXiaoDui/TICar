@@ -65,10 +65,10 @@ COMPARE2.ccp0PinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric6";
 
 GPIO1.$name                          = "GPIO_DC";
 GPIO1.associatedPins.create(2);
-GPIO1.associatedPins[0].assignedPort = "PORTB";
-GPIO1.associatedPins[0].assignedPin  = "8";
 GPIO1.associatedPins[0].interruptEn  = true;
 GPIO1.associatedPins[0].$name        = "AIN0";
+GPIO1.associatedPins[0].assignedPort = "PORTB";
+GPIO1.associatedPins[0].assignedPin  = "8";
 GPIO1.associatedPins[1].assignedPort = "PORTB";
 GPIO1.associatedPins[1].assignedPin  = "6";
 GPIO1.associatedPins[1].polarity     = "RISE_FALL";
@@ -106,7 +106,7 @@ GPIO4.associatedPins[0].interruptEn       = true;
 GPIO4.associatedPins[0].polarity          = "RISE";
 GPIO4.associatedPins[0].interruptPriority = "3";
 GPIO4.associatedPins[0].$name             = "PIN_INT";
-GPIO4.associatedPins[0].pin.$assign       = "PB9";
+GPIO4.associatedPins[0].pin.$assign       = "PA6";
 
 I2C1.$name                             = "I2C_LSM6DSV16X";
 I2C1.basicEnableController             = true;

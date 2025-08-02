@@ -45,6 +45,7 @@ uint8_t K230_receive = 0;
 
 //云台PID控制
 int32_t CCR_PIDflag = 0; 
+uint8_t CCR_PIDEnable=0;
 float targetX;
 float currentX;
 float targetY;
@@ -205,13 +206,14 @@ int main(void) {
   //DC_Stop();
   // set_pwm_left(20, 1);
   // set_pwm_right(20, 1);
-  
+  /*
   SetFollowerX(startX);
   SetFollowerDis(startDis);
   SetRadius(5);
   FollowPoint(0, 0);
   DL_Timer_setCaptureCompareValue(PWM_PTZ_INST,750,GPIO_PWM_PTZ_C1_IDX);
   delay_cycles(32000000);
+  */
   
   // StaticShooting();
   while (1) {
@@ -243,14 +245,15 @@ int main(void) {
         // 车后退     
         case 0x12:
            //MoveAlongSquareTask1(1);
-            BackMoveAlongLine() ;
+           NewMoveAlongSquare(1,10);
+            //BackMoveAlongLine() ;
             // NewMoveAlongSquare(1,10);
             //DC_Start(10);           
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;
         // 车停止
         case 0x13:
-            DC_Stop();
+            BackMoveAlongLineMode1() ;
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;
         // 调整车速
@@ -302,14 +305,14 @@ int main(void) {
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
             break;       
          case 0x32:
-            UART_K230_TransmitString("Counting down: 2 secs");
+            UART_K230_TransmitString("Begin Task2\r\n");
             Touch_pannel_Uart0_RxBuffer[1] = 0x0; 
          case 0x33:
-            UART_K230_TransmitString("Counting down: 4 secs");
+            //UART_K230_TransmitString("Begin Task3\r\n");
             StaticShooting(1);
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;
          case 0x34:
-            UART_K230_TransmitString("Counting down: 4 secs");
+           // UART_K230_TransmitString("Begin Task3\r\n");
             StaticShooting(0);
             Touch_pannel_Uart0_RxBuffer[1] = 0x0;                    
         default:
@@ -561,6 +564,21 @@ void UART_K230_INST_IRQHandler(void)
         CCR_PIDflag = 1;
       }
     }
+
+    else if (strncmp(K230_Uart2_RxBuffer,"ClockWise",9) == 0)
+    {
+        // StaticShooting(1);
+        Touch_pannel_receive_completed = 1;
+        Touch_pannel_Uart0_RxBuffer[1] = 0x33;
+    }
+
+    else if (strncmp(K230_Uart2_RxBuffer,"AntiClockWise",13) == 0)
+    {
+        // StaticShooting(0);
+        Touch_pannel_receive_completed = 1;
+        Touch_pannel_Uart0_RxBuffer[1] = 0x34;
+    }
+
 
     K230_receive_completed = 0;
   }

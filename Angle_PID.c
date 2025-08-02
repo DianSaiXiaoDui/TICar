@@ -42,7 +42,26 @@ void Angle_PID_Init(void)
    Angle_PID.OutputThreshL = 0;
    Angle_PID.Reset=0;
   }
-  else if(TrackLineMode==2)
+  else if(TrackLineMode==2 && DriveMode==1)
+  {
+	Angle_PID.Kp=0.0008;
+	Angle_PID.Kd=0.0003;
+	Angle_PID.P = 0;
+	Angle_PID.I = 0;
+	Angle_PID.D = 0;
+	Angle_PID.Error0=0;
+	Angle_PID.Error1=0;
+	Angle_PID.ErrorThresh = 0;
+	Angle_PID.ErrorInt=0;
+	Angle_PID.IThresh=0;
+	Angle_PID.CurX = 0;
+	Angle_PID.TargetX = 63;
+	Angle_PID.deltaVelocityRatio = 0;
+	Angle_PID.OutputThreshH=0.06;
+	Angle_PID.OutputThreshL = 0;
+	Angle_PID.Reset=0;
+  }
+  else if(TrackLineMode==2 && DriveMode==2)
   {
 	Angle_PID.Kp=0.0008;
 	Angle_PID.Kd=0.0003;
@@ -75,9 +94,14 @@ void Angle_PID_Control()
 		Angle_PID.Kd=0.0;
 		Angle_PID.OutputThreshH=5;
 	}
-	else if(TrackLineMode==2)
+	else if(TrackLineMode==2 && DriveMode==1)
 	{
 	    Angle_PID.Kp=0.0015;
+		Angle_PID.OutputThreshH=0.06;
+	}
+	else if(TrackLineMode==2 && DriveMode==-1)
+	{
+	    Angle_PID.Kp=0.02;
 		Angle_PID.OutputThreshH=0.06;
 	}
 	Angle_PID.Error0 = Angle_PID.TargetX - Angle_PID.CurX;//更新当前横向坐标误差
@@ -153,8 +177,11 @@ void Angle_PID_Update()
 	if(TrackLineMode==1)
 	{
 		Angle_PID_Control();
-		new_BL_Vel = V_Base - Angle_PID.deltaVelocity*DriveMode;
-		new_BR_Vel = V_Base + Angle_PID.deltaVelocity*DriveMode;
+
+		new_BL_Vel = V_Base - Angle_PID.deltaVelocity;
+		new_BR_Vel = V_Base + Angle_PID.deltaVelocity;
+		
+	
 		Set_TargetVelocity(new_BL_Vel, new_BR_Vel);
 	}
 	else if(TrackLineMode==2)
@@ -167,7 +194,7 @@ void Angle_PID_Update()
 		}
 		else if(DriveMode==-1)//后驱
 		{
-           new_BL_Velocity_Ratio = V_Ratio_Base_Straight + Angle_PID.deltaVelocityRatio;
+           new_BL_Velocity_Ratio = (V_Ratio_Base_Straight + Angle_PID.deltaVelocityRatio)*0.7;
 		   new_BR_Velocity_Ratio = V_Ratio_Base_Straight - Angle_PID.deltaVelocityRatio;
 		}
 		SetVelocity(new_BL_Velocity_Ratio, new_BR_Velocity_Ratio);

@@ -148,11 +148,17 @@ void openLoopTurning(int8_t clockwise,uint16_t angle)
 	TrackLineMode=1;//暂时切为模式1，启用速度pid转向
 	if(clockwise > 0)//右转
 	{
-		if(angle == 90)
+		if(angle == 90 && DriveMode==1)
 		{
             DC_Start(1);
 			//830000
 			TurnPeriod=790000;
+		}
+		else if(angle == 90 && DriveMode==-1)
+		{
+            DC_Start(1);
+			//830000
+			TurnPeriod=830000;
 		}
 		if(angle == 180)
 		{
@@ -162,11 +168,17 @@ void openLoopTurning(int8_t clockwise,uint16_t angle)
 	}
 	else
 	{
-		if(angle == 90)
+		if(angle == 90 && DriveMode==1)
 		{
 			DC_Start(-1);
 			//830000
 			TurnPeriod=790000;
+		}
+		else if(angle == 90 && DriveMode==-1)
+		{
+            DC_Start(-1);
+			//830000
+			TurnPeriod=830000;
 		}
 		if(angle == 180)
 		{
@@ -252,11 +264,11 @@ AAAAAAAAAAAAAA
 
 
 
-2------------3
+3------------2
 |            |
 |            |
 |            |
-1------------4 
+4------------1
 */
 
 //行进过程中切换前驱/后驱模式
@@ -266,29 +278,29 @@ void NewMoveAlongSquare(uint8_t start_idx,uint16_t period)
  while(cnt++<period)
  {
   //1->2
-  MoveForward(100);//直行1m
-  Delay_ms(500);
+  FrontMoveAlongLine(100);//直行1m
+  Delay_ms(300);
   openLoopTurning(-1,90);//左转90度
-  SwitchDriveMode(-1);//切换为后驱模式
-  Delay_ms(500);
+  //SwitchDriveMode(-1);//切换为后驱模式
+  Delay_ms(300);
   //2->3
-  MoveForward(100);//直行1m
-  Delay_ms(500);
+  FrontMoveAlongLine(100);//直行1m
+  Delay_ms(300);
+  SwitchDriveMode(-1);//切换为后驱模式
   openLoopTurning(1,90);//右转90度
-  Delay_ms(500);
+  Delay_ms(300);
 //保持后驱模式
   //3->4
-  MoveForward(100);//直行1m
-  Delay_ms(500);
+  BackMoveAlongLineMode1(100);//直行1m
+  Delay_ms(300);
   openLoopTurning(-1,90);//左转90度
-  SwitchDriveMode(1);//切换为前驱模式
-  Delay_ms(500);
+  Delay_ms(300);
   //4->1
-  MoveForward(100);//直行1m
-  Delay_ms(500);
-  openLoopTurning(1,90);//右转90度
-  Delay_ms(500);
-  //保持前驱模式
+  BackMoveAlongLineMode1(100);//直行1m
+  Delay_ms(300);
+  SwitchDriveMode(1);//切换为前驱模式
+  openLoopTurning(-1,90);//右转90度
+  Delay_ms(300);
  }
 
 }
@@ -344,7 +356,7 @@ void FrontMoveAlongLine()
 	}*/
 	V_Base=25;
 	V_Ratio_Base_Straight=0.25;
-	TargetDistance=100;
+	TargetDistance=98;
 	EnableDistanceFlag=1;
 	if(MoveFlag==0)
 	{
@@ -353,7 +365,7 @@ void FrontMoveAlongLine()
 	//最多直行1m
 	while(!StraightStopFlag)
 	{
-		if(TotalDistance>=102)//确保车停下
+		if(TotalDistance>=100)//确保车停下
 		{
 			TotalDistance=0;
 	       EnableDistanceFlag=0;
@@ -422,7 +434,7 @@ void BackMoveAlongLineMode1()
 	uint8_t Loss_Line_Flag=0;//丢线标志
 	DriveMode=-1;//后驱
 	TrackLineMode=1;//巡线模式1
-	T_Angle=60; //直接差速pid周期60ms
+	T_Angle=100; //直接差速pid周期100ms
 	//启动电机
    	if(MoveFlag==0)
 	{
@@ -444,9 +456,7 @@ void BackMoveAlongLineMode1()
 	       DC_Stop();	
 		   break;
 		}
-		//不断读取CCD数据，检测黑线中心
-		CCD_Read();
-		CCD_DataProcess();
+
 
 		//更新测速
 		if(Velocity_UpdateFlag==1)
@@ -463,18 +473,22 @@ void BackMoveAlongLineMode1()
 		}
         
 		//巡线模式1，角度pid更新	
-		if(CCD_UpdateFlag==1 && TrackLineMode==1) 
+		/*if(CCD_UpdateFlag==1 && TrackLineMode==1 && TotalDistance>20) 
 		{
+
+	     	CCD_Read();
+	    	CCD_DataProcess();
 			if(CCD_TargetIdx!=-1)
 			{ 
 				Angle_PID_SetCurX(CCD_TargetIdx);
 				Angle_PID_Update();
 			}
-			else{
-				Set_TargetVelocity(V_Base,V_Base);//更新pid目标速度
-			}
+			// else{
+			// 	Set_TargetVelocity(V_Base,V_Base);//更新pid目标速度
+			// }
 			CCD_UpdateFlag=0;
 		}
+		*/
 	}
 	TotalDistance=0;
 	EnableDistanceFlag=0;
@@ -497,14 +511,14 @@ void BackMoveAlongLine()
 	uint8_t Loss_Line_Flag=0;//丢线标志
 	DriveMode=-1;//后驱
 	TrackLineMode=2;//巡线模式2
-	T_Angle=10; //直接差速pid周期10ms
+	T_Angle=20; //直接差速pid周期10ms
 	//启动电机
    /*if(MoveFlag==0)
 	{
 		DC_Start(0);
 	}*/
-	V_Base=30;
-	V_Ratio_Base_Straight=0.3;
+	V_Base=20;
+	V_Ratio_Base_Straight=0.2;
 	TargetDistance=98;
 	EnableDistanceFlag=1;
 	if(MoveFlag==0)
@@ -523,8 +537,8 @@ void BackMoveAlongLine()
 		   break;
 		}
 		//不断读取CCD数据，检测黑线中心
-		CCD_Read();
-		CCD_DataProcess();
+		//CCD_Read();
+		//CCD_DataProcess();
 
         /*if(CCD_TargetIdx==-1 && TotalDistance>50 && TrackLineMode==2)
 		{
@@ -548,7 +562,8 @@ void BackMoveAlongLine()
 
     
 		 //巡线模式2，角度pid更新
-		if(CCD_UpdateFlag==1 && TrackLineMode==2 )
+		 //开环走15cm
+		if(CCD_UpdateFlag==1 && TrackLineMode==2 && TotalDistance>15)
 		{
 			CCD_Read();
 			CCD_DataProcess();
@@ -575,7 +590,7 @@ void MoveAlongSquareTask1(uint8_t period)
  {
    FrontMoveAlongLine();//直行1m
    Delay_ms(300);//延时0.3s
-   openLoopTurning(1,90);//右转90度
+   openLoopTurning(-1,90);//左转90度
    Delay_ms(300);//延时0.3s
  }
   DC_Stop();

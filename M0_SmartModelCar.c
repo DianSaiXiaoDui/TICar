@@ -132,6 +132,7 @@ volatile uint8_t Touch_pannel_receive_len = 0;
 volatile uint8_t Touch_pannel_receive_completed = 0;
 volatile uint8_t Touch_pannel_receive = 0;
 volatile uint8_t Touch_pannel_data_receive_start = 0;
+char Touch_pannel_Uart0_TxBuffer[128];
 
 //姿态传感器数据
 //extern float yaw;//横向角
@@ -140,7 +141,7 @@ volatile uint8_t Touch_pannel_data_receive_start = 0;
 
 //驱动模式
 volatile int8_t DriveMode=1;//前驱（-1：后驱）
-void UART_SCREEN_TransmitStrimng(const char* str);
+void UART_SCREEN_TransmitString(const char* str);
 void UART_K230_TransmitString(const char* str);
 /*uint32_t Delay_ms(uint32_t n)
 {
@@ -314,7 +315,80 @@ int main(void) {
          case 0x34:
            // UART_K230_TransmitString("Begin Task3\r\n");
             StaticShooting(0);
-            Touch_pannel_Uart0_RxBuffer[1] = 0x0;                    
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+         case 0x35:
+            sprintf(Touch_pannel_Uart0_TxBuffer,"page8.t1.txt=\"%f\"\xff\xff\xff",CCRX_PID.Kp);
+            UART_SCREEN_TransmitString(Touch_pannel_Uart0_TxBuffer); 
+            sprintf(Touch_pannel_Uart0_TxBuffer,"page8.t3.txt=\"%f\"\xff\xff\xff",CCRX_PID.Ki);  
+            UART_SCREEN_TransmitString(Touch_pannel_Uart0_TxBuffer);
+            sprintf(Touch_pannel_Uart0_TxBuffer,"page8.t5.txt=\"%f\"\xff\xff\xff",CCRX_PID.Ki);
+            UART_SCREEN_TransmitString(Touch_pannel_Uart0_TxBuffer);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+            break;
+         case 0x36:
+            CCRX_PID.Kp+=0.1;
+            sprintf(Touch_pannel_Uart0_TxBuffer,"page8.t1.txt=\"%f\"\xff\xff\xff",CCRX_PID.Kp);
+            UART_SCREEN_TransmitString(Touch_pannel_Uart0_TxBuffer); 
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+            break;
+         case 0x37:
+            CCRX_PID.Kp-=0.1;
+            sprintf(Touch_pannel_Uart0_TxBuffer,"page8.t1.txt=\"%f\"\xff\xff\xff",CCRX_PID.Kp);
+            UART_SCREEN_TransmitString(Touch_pannel_Uart0_TxBuffer); 
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+            break;
+         case 0x38:
+            CCRX_PID.Kp+=0.01;
+            sprintf(Touch_pannel_Uart0_TxBuffer,"page8.t1.txt=\"%f\"\xff\xff\xff",CCRX_PID.Kp);
+            UART_SCREEN_TransmitString(Touch_pannel_Uart0_TxBuffer); 
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+            break;
+         case 0x39:
+            CCRX_PID.Kp-=0.01;
+            sprintf(Touch_pannel_Uart0_TxBuffer,"page8.t1.txt=\"%f\"\xff\xff\xff",CCRX_PID.Kp);
+            UART_SCREEN_TransmitString(Touch_pannel_Uart0_TxBuffer); 
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+         case 0x40:
+            CCRX_PID.Ki+=0.1;
+            sprintf(Touch_pannel_Uart0_TxBuffer,"page8.t3.txt=\"%f\"\xff\xff\xff",CCRX_PID.Ki);  
+            UART_SCREEN_TransmitString(Touch_pannel_Uart0_TxBuffer);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+         case 0x41:
+            CCRX_PID.Ki-=0.1;
+            sprintf(Touch_pannel_Uart0_TxBuffer,"page8.t3.txt=\"%f\"\xff\xff\xff",CCRX_PID.Ki);  
+            UART_SCREEN_TransmitString(Touch_pannel_Uart0_TxBuffer);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+         case 0x42:
+            CCRX_PID.Ki+=0.01;
+            sprintf(Touch_pannel_Uart0_TxBuffer,"page8.t3.txt=\"%f\"\xff\xff\xff",CCRX_PID.Ki);  
+            UART_SCREEN_TransmitString(Touch_pannel_Uart0_TxBuffer);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+         case 0x43:
+            CCRX_PID.Ki-=0.01;
+            sprintf(Touch_pannel_Uart0_TxBuffer,"page8.t3.txt=\"%f\"\xff\xff\xff",CCRX_PID.Ki);  
+            UART_SCREEN_TransmitString(Touch_pannel_Uart0_TxBuffer);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+         case 0x44:
+            CCRX_PID.Kd+=0.1;
+            sprintf(Touch_pannel_Uart0_TxBuffer,"page8.t5.txt=\"%f\"\xff\xff\xff",CCRX_PID.Ki);
+            UART_SCREEN_TransmitString(Touch_pannel_Uart0_TxBuffer);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+         case 0x45:
+            CCRX_PID.Kd-=0.1;
+            sprintf(Touch_pannel_Uart0_TxBuffer,"page8.t5.txt=\"%f\"\xff\xff\xff",CCRX_PID.Ki);
+            UART_SCREEN_TransmitString(Touch_pannel_Uart0_TxBuffer);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+         case 0x46:
+            CCRX_PID.Kd+=0.01;
+            sprintf(Touch_pannel_Uart0_TxBuffer,"page8.t5.txt=\"%f\"\xff\xff\xff",CCRX_PID.Ki);
+            UART_SCREEN_TransmitString(Touch_pannel_Uart0_TxBuffer);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+         case 0x47:
+            CCRX_PID.Kd-=0.01;
+            sprintf(Touch_pannel_Uart0_TxBuffer,"page8.t5.txt=\"%f\"\xff\xff\xff",CCRX_PID.Ki);
+            UART_SCREEN_TransmitString(Touch_pannel_Uart0_TxBuffer);
+            Touch_pannel_Uart0_RxBuffer[1] = 0x0;
+         
         default:
             break;
         }
